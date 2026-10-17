@@ -465,7 +465,7 @@
     "apps/frontend/src/components/CitationText.tsx": "72a4bf068ba127bfe7d172dd42518925d524e0ff5c4db1cd75840bca4b4b4dda",
     "apps/frontend/src/components/DecisionSessionStepPanel.tsx": "acd245002b5ab555610dca95dcfb8b231ab59729b51841997b1736c8623fde8b",
     "apps/frontend/src/components/FundNavChart.tsx": "d91a8b00bd291d2692d23691792e21be763dc91ad80412b20295472de2e7d4cc",
-    "apps/frontend/src/components/Layout.tsx": "dfe5300b5fc03c685855076a81ccf684e8960476ea20ef049429ea28e5880503",
+    "apps/frontend/src/components/Layout.tsx": "d2d33c1caa67c61b5b690f5856ea70114370fb5c2b74e45e0d8df3f407793ed8",
     "apps/frontend/src/components/ModeSelector.tsx": "7d35ef5949ab8263aeb0724adfd6209c46c9930f1e13015e4c05bbdccf10f320",
     "apps/frontend/src/components/RadarBar.tsx": "85da7ab38f56f78331815ba4eba5d12c8a2e92885045415c2768f83a64946666",
     "apps/frontend/src/components/RefreshDataButton.tsx": "8bff295876bdcdd88bb31dca6dfc78f85add2b672d921d13a5f3da6f03c2285f",
