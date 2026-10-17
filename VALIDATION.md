@@ -57,3 +57,7 @@ TypeScript), lint and all 14 unit test files passed again after these changes.
 No backend behavior changed. The earlier full backend and privacy validation
 results above apply to the prepared source baseline. Public visibility still
 requires a separate owner instruction.
+
+The first GitHub source-integrity check exposed automatic LF normalization of
+three legacy CRLF frontend files. Explicit `-text` attributes preserve their
+reviewed bytes; no file encoding or newline migration was performed.
