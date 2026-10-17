@@ -1,0 +1,49 @@
+{
+  "scenario_id": "scenario_004_strategy_evaluate",
+  "name": "策略评估生成 SetupCard",
+  "description": "验证对已有策略执行评估后，SetupCard 生成且匹配/不匹配条件正确，recommended_action 合理。",
+  "seed_data": {
+    "raw_sources": [],
+    "claims": [
+      {
+        "id": "clm_test_004_a",
+        "summary": "BTC资金费率连续为正，多头情绪主导",
+        "stance": "bullish",
+        "asset_scope": ["BTC"],
+        "theme_scope": ["资金流"],
+        "status": "active",
+        "confidence": 0.8
+      }
+    ],
+    "events": [],
+    "market_states": [
+      { "asset": "BTC", "timeframe": "1d", "trend_direction": "uptrend", "rsi_14": 62.0 }
+    ],
+    "flow_signals": [
+      { "asset": "BTC", "signal_type": "funding_rate", "direction": "bullish", "magnitude": 0.7 }
+    ],
+    "strategies": [
+      {
+        "id": "stg_test_004",
+        "strategy_name": "BTC动量策略",
+        "strategy_type": "momentum",
+        "entry_conditions": ["价格突破20日均线", "资金费率为正", "RSI在50-70之间"],
+        "applicable_assets": ["BTC"]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "type": "run_strategy_evaluate",
+      "strategy_id": "stg_test_004",
+      "asset": "BTC"
+    }
+  ],
+  "expected_assertions": [
+    { "type": "object_count_equals", "name": "至少生成1个Setup", "object": "setup_card", "min": 1 },
+    { "type": "setup_linked_to_strategy", "name": "Setup已关联到Strategy", "strategy_id": "stg_test_004" },
+    { "type": "field_not_empty", "name": "recommended_action非空", "object": "setup_card", "field": "recommended_action" },
+    { "type": "field_in_enum", "name": "recommended_action值合法", "object": "setup_card", "field": "recommended_action", "values": ["enter", "watch", "avoid", "wait"] },
+    { "type": "field_not_empty", "name": "strategy_fit_score已计算", "object": "setup_card", "field": "strategy_fit_score" }
+  ]
+}

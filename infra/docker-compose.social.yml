@@ -1,0 +1,56 @@
+# 社交媒体中间件服务栈
+# 用法: docker compose -f infra/docker-compose.social.yml up -d
+#
+# 服务清单:
+#   1. RSSHub        — Twitter/X + 微博 RSS 生成器 (端口 1200)
+#   2. we-mp-rss     — 微信公众号 RSS 订阅 (端口 8090)
+#   3. MediaCrawler  — 小红书 + 抖音爬虫 API (端口 8080, 需手动设置 Cookie)
+#
+# 注意: MediaCrawler 需要浏览器 Cookie，首次使用需手动配置，
+#       详见 infra/mediacrawler/README.md
+
+services:
+  # ── 1. RSSHub (Twitter/X + 微博) ──────────────────────────────
+  # 如果已通过独立 docker run 运行，可注释掉此服务
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: rsshub
+    restart: unless-stopped
+    ports:
+      - "1200:1200"
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      CACHE_EXPIRE: 300
+      # Twitter Cookie（填写后可拉取需要登录的内容）
+      # TWITTER_AUTH_TOKEN: ""
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:1200"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── 2. we-mp-rss (微信公众号) ─────────────────────────────────
+  # GitHub: https://github.com/rachelos/we-mp-rss
+  # 首次启动后访问 http://localhost:8090 进行配置
+  we-mp-rss:
+    image: rachelos/we-mp-rss:latest
+    container_name: we-mp-rss
+    restart: unless-stopped
+    ports:
+      - "8090:8001"
+    volumes:
+      - wemprss_data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
+      # SQLite 数据库路径（持久化到 volume）
+      - DB=sqlite:///data/db.db
+      # 加密密钥（生产环境请改成强随机值）
+      - SECRET_KEY=change-me-to-a-random-secret-key-agent-dms
+      # 禁用 Redis（使用内置缓存即可）
+      - REDIS_URL=
+      # Web 方式授权二维码
+      - WERSS_AUTH_WEB=True
+
+volumes:
+  wemprss_data:

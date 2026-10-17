@@ -1,0 +1,38 @@
+﻿{
+  "scenario_id": "scenario_002_multi_claim_ingestion",
+  "name": "多条观点入库",
+  "description": "验证包含多个观点的文章能正确抽取多条 Claim，且每条 Claim 的 speaker/theme/asset 写入正确。",
+  "seed_data": {
+    "raw_sources": [
+      {
+        "id": "src_test_002",
+        "title": "高盛2024年宏观展望",
+        "source_type": "note",
+        "raw_text": "高盛研究团队在年度展望中提出三个核心观点。第一，美国经济将实现软着陆，GDP增速维持在2%附近。第二，黄金将受益于央行持续购金，年底目标价2500美元。第三，比特币减半效应将在2024年下半年显现，看多BTC至80000美元。",
+        "speaker_hint": "高盛",
+        "theme_hint": "宏观 大宗商品 加密",
+        "status": "pending"
+      }
+    ],
+    "claims": [],
+    "events": [],
+    "market_states": [],
+    "flow_signals": [],
+    "strategies": []
+  },
+  "actions": [
+    {
+      "type": "run_ingestion",
+      "source_id": "src_test_002"
+    }
+  ],
+  "expected_assertions": [
+    { "type": "object_exists", "name": "RawSource已入库", "object": "raw_source", "id": "src_test_002" },
+    { "type": "object_count_equals", "name": "至少生成2条Claim", "object": "claim_card", "min": 2 },
+    { "type": "object_status_equals", "name": "RawSource状态=completed", "object": "raw_source", "id": "src_test_002", "value": "completed" },
+    { "type": "claim_linked_to_source", "name": "Claim已关联到Source", "source_id": "src_test_002" },
+    { "type": "field_not_empty", "name": "Claim.asset_scope非空", "object": "claim_card", "field": "asset_scope" },
+    { "type": "job_run_completed", "name": "Ingestion JobRun已完成", "job_type": "ingestion" }
+  ]
+}
+

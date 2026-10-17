@@ -1,0 +1,9 @@
+SYNTHETIC DEMO — no real organization, customer or investment recommendation.
+
+An imaginary neighborhood library tested evening opening hours for two weeks.
+Week one recorded 80 visits; week two recorded 96. The trial used one volunteer.
+The library has not measured staffing costs or longer-term demand.
+The proposed decision is to continue a limited trial while collecting those costs.
+If volunteer availability falls, return to the original schedule.
+
+Example question: What supports continuing the trial, and what remains unknown?

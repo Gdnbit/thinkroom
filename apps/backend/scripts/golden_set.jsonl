@@ -1,0 +1,5 @@
+﻿{"query": "BTC 目前在牛市还是熊市？", "asset": "BTC", "relevant_claim_ids": ["01KPAXT6SJNZZ3WDGV03S7A4GA", "01KPAXNN5D48Q7861T515Q0XGW", "01KPAXWFVNKBG3SJPT0FSN1A0Q", "01KPAYA8GGWYW6JJK7F8KEZTFR", "01KPAYKS2TSYY5ZEV6W1N5P1X3"], "notes": "涵盖 3 bull（减半周期/价格预测/动量入场）+ 2 bear（归零论/中本聪身份）"}
+{"query": "比特币主要风险因素有哪些？", "asset": "BTC", "relevant_claim_ids": ["01KPAYNPFXQ3DAGV9F3ZK9ZXWP", "01KPAYADHY8EEBDQC3ED1D3PJ0", "01KPAYAQ7NWK36FCYJ9ZZA1F6V", "01KPAYCJ3B5T3DDPFBVXRJ1BS1", "01KPAYAB5EPQN4CS413WG0H83A"], "notes": "5 条 risk/bearish：技术局限/量子计算/MSTR杠杆/缺乏基本面/Tether流动性"}
+{"query": "BTC 短线交易入场策略", "asset": "BTC", "relevant_claim_ids": ["01KPAXWFVNKBG3SJPT0FSN1A0Q", "01KPAXWH6AY75Y6W57BH7XKCD5", "01KPAXWJCXKWTVVSH35K9K29B7", "01KPAY1FFWGJS51EWQYGHEP8V2"], "notes": "动量策略入场 + 出场规则 + 风险控制 + CPI交易"}
+{"query": "比特币长期价格前景", "asset": "BTC", "relevant_claim_ids": ["01KPAXT6SJNZZ3WDGV03S7A4GA", "01KPAXNN5D48Q7861T515Q0XGW", "01KPAYA8GGWYW6JJK7F8KEZTFR", "01KPAYQXVM6VDCBTWBT39V3AGX"], "notes": "减半目标 + 回测预测 + 归零论 + 能源本位"}
+{"query": "主权机构持有比特币的情况", "asset": "BTC", "relevant_claim_ids": ["01KPAY3RNPPHSS65TYCAA9CA2F", "01KPAYAQ7NWK36FCYJ9ZZA1F6V"], "notes": "不丹主权持有 + MSTR 机构持有"}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "suite_id": "ingestion-reliability-v1",
+  "cases": [
+    {"case_id": "IR-HYBRID-001", "fixture": "generated:text-scan-text-pdf", "expected": "ocr_page_2_only"},
+    {"case_id": "IR-HYBRID-002", "fixture": "generated:text-failed-scan-text-pdf", "expected": "partial_failed_page_2"},
+    {"case_id": "IR-HYBRID-003", "fixture": "reference:wef-102-page", "expected": "native_with_decorative_edge_pair"},
+    {"case_id": "IR-QUEUE-001", "fixture": "threadpool-at-capacity", "expected": "admission_rejected"},
+    {"case_id": "IR-QUEUE-002", "fixture": "batch-over-available-capacity", "expected": "all_or_none"},
+    {"case_id": "IR-QUEUE-003", "fixture": "duplicate-job-id", "expected": "idempotent_receipt"},
+    {"case_id": "IR-CELERY-001", "fixture": "celery-eager-success", "expected": "identifier_only_payload"},
+    {"case_id": "IR-CELERY-002", "fixture": "celery-broker-unavailable", "expected": "safe_retryable_failure"},
+    {"case_id": "IR-CELERY-003", "fixture": "production-threadpool-mode", "expected": "release_blocked"},
+    {"case_id": "IR-IDEMPOTENCY-001", "fixture": "completed-job-redelivery", "expected": "no_rerun"},
+    {"case_id": "IR-IDEMPOTENCY-002", "fixture": "active-unexpired-lease", "expected": "duplicate_rejected"},
+    {"case_id": "IR-IDEMPOTENCY-003", "fixture": "expired-lease-recovery", "expected": "bounded_retry_or_dead_letter"}
+  ]
+}

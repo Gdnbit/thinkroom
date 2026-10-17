@@ -1,0 +1,8 @@
+# P2-D 负载测试依赖（与生产 image 解耦，独立 venv 安装）
+#
+# 安装：
+#   python -m venv .venv-load
+#   .venv-load\Scripts\activate
+#   pip install -r tests/load/requirements.txt
+#
+locust>=2.27.0

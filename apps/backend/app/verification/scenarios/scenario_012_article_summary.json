@@ -1,0 +1,42 @@
+{
+  "scenario_id": "scenario_012_article_summary",
+  "name": "文章级摘要生成验证",
+  "description": "验证三级兜底策略：L1直接全文(<=6000字)、L2分段合并、L3结构采样，以及摘要写入 RawSource.article_summary",
+  "seed_data": {
+    "raw_sources": [
+      {
+        "id": "src_summary_l1",
+        "title": "测试L1短文摘要",
+        "source_type": "note",
+        "raw_text": "OPEC宣布减产100万桶/日，沙特主导此次减产决定，目标是支撑油价在80美元/桶上方。分析人士认为此举将推动通胀预期上行，美联储货币政策收紧压力增加，进而压制风险资产。黄金短期受益于避险需求，但如果美元指数走强则上行空间受限。综合来看，石油中期看多，黄金震荡偏多，美股承压。",
+        "status": "pending"
+      }
+    ],
+    "claims": [],
+    "strategies": []
+  },
+  "actions": [
+    {
+      "type": "check_article_summary",
+      "source_id": "src_summary_l1",
+      "expect_level": "L1",
+      "expect_min_length": 50,
+      "label": "L1短文摘要生成"
+    },
+    {
+      "type": "run_ingestion",
+      "source_id": "src_summary_l1"
+    }
+  ],
+  "expected_assertions": [
+    {
+      "type": "no_unexpected_error",
+      "name": "摘要生成无异常"
+    },
+    {
+      "type": "article_summary_generated",
+      "name": "article_summary字段已生成",
+      "source_id": "src_summary_l1"
+    }
+  ]
+}

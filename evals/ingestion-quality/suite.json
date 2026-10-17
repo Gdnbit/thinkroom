@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "suite_id": "synthetic-public-ingestion-v1",
+  "policy": {
+    "max_external_calls": 0
+  },
+  "cases": [
+    {
+      "case_id": "IQ-TXT-001",
+      "execution_mode": "offline",
+      "path": "tests/fixtures/synthetic-ingestion/demo.txt",
+      "sha256": "19e1fe055acf35ec501af678ebe904b0e34bde7025d834553e0154666cf3e4c1",
+      "bytes": 75,
+      "expected": {
+        "method": "read_text",
+        "min_text_chars": 50
+      },
+      "anchors": [
+        {
+          "text": "visits rose from 80 to 96"
+        }
+      ]
+    },
+    {
+      "case_id": "IQ-PDF-TEXT-LONG-001",
+      "execution_mode": "offline",
+      "path": "tests/fixtures/synthetic-ingestion/long.pdf",
+      "sha256": "6a8b498e36bd5515eec371cda82b652ac1e58df8d564fb3fa14d0d487a81bf59",
+      "bytes": 53430,
+      "expected": {
+        "method": "pdfium_text",
+        "pages_total": 102,
+        "nonempty_pages": 100,
+        "empty_pages": [
+          1,
+          102
+        ],
+        "min_text_chars": 6000,
+        "external_calls": 0
+      },
+      "anchors": [
+        {
+          "text": "Synthetic library report page 2"
+        },
+        {
+          "text": "Synthetic library report page 101"
+        }
+      ]
+    },
+    {
+      "case_id": "IQ-PDF-TEXT-ZH-001",
+      "execution_mode": "offline",
+      "path": "tests/fixtures/synthetic-ingestion/chinese.pdf",
+      "sha256": "02ef69ed112ed8c36ac848d2f30e6f24ad1f0acb0cf619d3120675d13546f3f9",
+      "bytes": 8367,
+      "expected": {
+        "method": "pdfium_text",
+        "pages_total": 12,
+        "nonempty_pages": 12,
+        "min_text_chars": 200,
+        "external_calls": 0
+      },
+      "anchors": [
+        {
+          "text": "社区图书馆"
+        },
+        {
+          "text": "成本未知"
+        }
+      ]
+    },
+    {
+      "case_id": "IQ-PDF-TEXT-TABLE-001",
+      "execution_mode": "offline",
+      "path": "tests/fixtures/synthetic-ingestion/table.pdf",
+      "sha256": "a680ae5c6cb44a39bbe21803821f98ca5b42cc733d49e947e01c4979e993de45",
+      "bytes": 5006,
+      "expected": {
+        "method": "pdfium_text",
+        "pages_total": 8,
+        "nonempty_pages": 8,
+        "min_text_chars": 400,
+        "external_calls": 0
+      },
+      "anchors": [
+        {
+          "text": "Synthetic library report page 8"
+        }
+      ]
+    },
+    {
+      "case_id": "IQ-DUP-001",
+      "execution_mode": "offline",
+      "sha256": "dbdd8e4c1c3ad58ff526dc9b07a0eccd4707ddf134bcf0fc33bde703e038e3bb",
+      "bytes": 172398,
+      "expected": {
+        "width": 1080,
+        "height": 32721,
+        "slices": 21,
+        "identical": true,
+        "external_calls": 0
+      },
+      "anchors": [],
+      "paths": [
+        "tests/fixtures/synthetic-ingestion/long-image.png",
+        "tests/fixtures/synthetic-ingestion/long-image-copy.png"
+      ]
+    }
+  ]
+}

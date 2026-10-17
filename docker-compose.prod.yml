@@ -1,0 +1,233 @@
+# Production compose · Research OS
+# ----------------------------------------------------------------------
+# 运行前准备：
+#   1. cp apps/backend/.env.prod.example apps/backend/.env.prod 并填入：
+#        APP_API_KEY=<long-random>
+#        APP_ENV=production
+#        APP_DEBUG=false
+#        OPENROUTER_API_KEY=...
+#        SECRETS_SOURCE=sops:production
+#        DATABASE_URL_SOURCE=sops:DATABASE_URL
+#        REDIS_URL_SOURCE=sops:REDIS_URL
+#        MINIO_ENDPOINT_SOURCE=sops:MINIO_ENDPOINT
+#        MINIO_ACCESS_KEY_SOURCE=sops:MINIO_ACCESS_KEY
+#        MINIO_SECRET_KEY_SOURCE=sops:MINIO_SECRET_KEY
+#        POSTGRES_PASSWORD=<change-me>
+#        MINIO_ROOT_USER=<change-me>
+#        MINIO_ROOT_PASSWORD=<change-me>
+#        （其他见 .env.prod.example）
+#   2. docker compose --env-file apps/backend/.env.prod -f docker-compose.prod.yml build
+#   3. docker compose --env-file apps/backend/.env.prod -f docker-compose.prod.yml up -d
+#
+# 与 docker-compose.yml 的差异：
+#   - 无源代码 bind mount（镜像即部署单元）
+#   - 无 --reload；backend 用 uvicorn --workers 1，避免内存进度 tracker 在多 worker 下丢实时进度
+#   - frontend 用 nginx 托管静态产物，反代 /api → backend:8000
+#   - Postgres/Redis/MinIO 不对宿主机开端口，仅内网
+#   - 全部 restart: always
+#   - 资源上限（mem_limit，按需调）
+# ----------------------------------------------------------------------
+
+services:
+  postgres:
+    # 使用 pgvector 官方镜像（pg16 + 预装 vector 扩展），支持 Tier ① 语义检索
+    # 镜像来源：https://hub.docker.com/r/pgvector/pgvector （官方维护）
+    image: pgvector/pgvector:pg16
+    container_name: ros_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent_db}
+      POSTGRES_USER: ${POSTGRES_USER:-agent_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 必须设置}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # 不向宿主暴露端口，只在 internal network 可见
+    networks:
+      - ros_internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent_user} -d ${POSTGRES_DB:-agent_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    mem_limit: 1g
+
+  redis:
+    image: redis:7-alpine
+    container_name: ros_redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - ros_internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    mem_limit: 768m
+
+  minio:
+    image: minio/minio:latest
+    container_name: ros_minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER 必须设置}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD 必须设置}
+    volumes:
+      - minio_data:/data
+    networks:
+      - ros_internal
+    # 仅控制台映射到宿主（9001），S3 API 仅内网（9000）
+    ports:
+      - "127.0.0.1:9001:9001"
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: always
+    mem_limit: 512m
+
+  migrate:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: ros_migrate
+    env_file:
+      - ./apps/backend/.env.prod
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent_db}
+      DATABASE_URL_SOURCE: ${DATABASE_URL_SOURCE:?DATABASE_URL_SOURCE must identify the controlled source for the POSTGRES_PASSWORD-backed DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ros_internal
+    # 覆盖默认 CMD：跑 alembic 后退出
+    entrypoint: ["/usr/bin/tini", "--"]
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  ingestion_worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: ros_ingestion_worker
+    env_file:
+      - ./apps/backend/.env.prod
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent_db}
+      DATABASE_URL_SOURCE: ${DATABASE_URL_SOURCE:?DATABASE_URL_SOURCE must identify the controlled source for the POSTGRES_PASSWORD-backed DATABASE_URL}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/2
+      REDIS_URL_SOURCE: ${REDIS_URL_SOURCE:?REDIS_URL_SOURCE must identify the controlled source for the production Redis routing config}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ENDPOINT_SOURCE: ${MINIO_ENDPOINT_SOURCE:?MINIO_ENDPOINT_SOURCE must identify the controlled source for the production object storage endpoint}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_ACCESS_KEY_SOURCE: ${MINIO_ACCESS_KEY_SOURCE:?MINIO_ACCESS_KEY_SOURCE must identify the controlled source for MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_SECRET_KEY_SOURCE: ${MINIO_SECRET_KEY_SOURCE:?MINIO_SECRET_KEY_SOURCE must identify the controlled source for MINIO_ROOT_PASSWORD}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      INGESTION_DISPATCHER_MODE: celery
+      SECRETS_SOURCE: ${SECRETS_SOURCE:?SECRETS_SOURCE must identify the controlled secret source, e.g. sops:production or vault:research-os}
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    networks:
+      - ros_internal
+      - ros_external
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command:
+      - /bin/sh
+      - -c
+      - exec celery -A app.celery_app:celery_app worker --loglevel=INFO --queues=ingestion --concurrency=$${CELERY_WORKER_CONCURRENCY:-2}
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app:celery_app inspect ping --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+    stop_grace_period: 10m
+    restart: always
+    mem_limit: 4g
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: ros_backend
+    env_file:
+      - ./apps/backend/.env.prod
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent_db}
+      DATABASE_URL_SOURCE: ${DATABASE_URL_SOURCE:?DATABASE_URL_SOURCE must identify the controlled source for the POSTGRES_PASSWORD-backed DATABASE_URL}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_URL_SOURCE: ${REDIS_URL_SOURCE:?REDIS_URL_SOURCE must identify the controlled source for the production Redis routing config}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ENDPOINT_SOURCE: ${MINIO_ENDPOINT_SOURCE:?MINIO_ENDPOINT_SOURCE must identify the controlled source for the production object storage endpoint}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_ACCESS_KEY_SOURCE: ${MINIO_ACCESS_KEY_SOURCE:?MINIO_ACCESS_KEY_SOURCE must identify the controlled source for MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_SECRET_KEY_SOURCE: ${MINIO_SECRET_KEY_SOURCE:?MINIO_SECRET_KEY_SOURCE must identify the controlled source for MINIO_ROOT_PASSWORD}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      # Release gate secret source provenance. This is metadata only; do not put secret values here.
+      SECRETS_SOURCE: ${SECRETS_SOURCE:?SECRETS_SOURCE must identify the controlled secret source, e.g. sops:production or vault:research-os}
+    volumes:
+      - uploads_data:/app/uploads
+      - logs_data:/app/logs
+    networks:
+      - ros_internal
+      - ros_external
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      ingestion_worker:
+        condition: service_healthy
+    # 用镜像内默认 CMD（--workers 1）。进度迁移到 Redis/DB 之前不要直接提升 worker 数。
+    restart: always
+    mem_limit: 2g
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    container_name: ros_frontend
+    networks:
+      - ros_external
+    depends_on:
+      - backend
+    # 对外 443 建议挂 Traefik / Caddy 做 TLS；此处先暴 80
+    ports:
+      - "80:80"
+    restart: always
+    mem_limit: 256m
+
+networks:
+  ros_internal:
+    driver: bridge
+    internal: false  # 改 true 可完全断外网（但 backend 要外呼 OpenRouter，故保留）
+  ros_external:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  uploads_data:
+  logs_data:

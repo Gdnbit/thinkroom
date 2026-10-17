@@ -1,0 +1,3 @@
+{"query": "BTC 目前在牛市还是熊市？", "asset": "BTC", "relevant_claim_ids": ["EXAMPLE_CLAIM_ID_1", "EXAMPLE_CLAIM_ID_2"], "notes": "模板示例；relevant_claim_ids 需人工从 /api/v1/claims 查到真实 ID"}
+{"query": "ETH 合并之后长期前景", "asset": "ETH", "relevant_claim_ids": [], "notes": "填入人工标注为'与此问题最相关'的 claim 卡片 ID 列表（3-10 条）"}
+{"query": "美元流动性政策方向", "asset": null, "relevant_claim_ids": [], "notes": "宏观问题"}

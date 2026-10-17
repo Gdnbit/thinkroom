@@ -1,0 +1,53 @@
+{
+  "fixture_type": "decision_trace_replay_fixture",
+  "version": "synthetic-v1",
+  "candidate_id": "trace-debate-synthetic-demo",
+  "workflow": "committee",
+  "fixture": {
+    "related_object_type": "debate",
+    "related_object_id": "synthetic-demo",
+    "source_ids": [
+      "synthetic-library-source"
+    ]
+  },
+  "expected": {
+    "trace_event_count": 1,
+    "trace_event_ids": [
+      "synthetic-quality-event"
+    ],
+    "source_ids": [
+      "synthetic-library-source"
+    ],
+    "trigger_reasons": [
+      "quality:insufficient_evidence"
+    ]
+  },
+  "events": [
+    {
+      "id": "synthetic-quality-event",
+      "related_object_type": "debate",
+      "related_object_id": "synthetic-demo",
+      "run_id": "synthetic-run",
+      "event_type": "quality",
+      "status": "warning",
+      "source_ids": [
+        "synthetic-library-source"
+      ],
+      "payload": {
+        "warnings": [
+          {
+            "code": "insufficient_evidence",
+            "message": "Synthetic evidence requires review."
+          }
+        ]
+      }
+    }
+  ],
+  "acceptance_checks": [
+    "Trace IDs match the immutable event snapshot.",
+    "Insufficient evidence stays visible."
+  ],
+  "evidence_artifacts": [
+    "Synthetic fixture; not a historical execution report."
+  ]
+}

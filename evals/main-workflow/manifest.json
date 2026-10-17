@@ -1,0 +1,552 @@
+{
+  "manifest_id": "main_workflow_eval_manifest",
+  "version": "2026-07-04",
+  "owner": "Research OS production hardening",
+  "purpose": "Local quality contract for the main user workflow before introducing a larger external evaluation platform.",
+  "evaluation_strategy": "deterministic-first with optional live OpenRouter smoke",
+  "non_destructive": true,
+  "cases": [
+    {
+      "id": "selected-source-chat-cites-only-selected-source",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_two_source_scope_fixture",
+        "description": "Create selected and excluded sources with unique markers."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m app.verification.scope_acceptance",
+      "acceptance_checks": [
+        "semantic_search_selected_source_only passes",
+        "chat_context_includes_selected_not_excluded passes",
+        "chat_evidence_payload_ready contains selected marker and excludes excluded marker"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/scope_acceptance_*.json"
+      ],
+      "risk_if_missing": "The system may cite or reason over sources the user did not select."
+    },
+    {
+      "id": "unsupported-question-refuses-insufficient-evidence",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_source_with_unrelated_question",
+        "description": "Use a selected source about workflow reliability, then ask a question unrelated to that source."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py -q",
+      "acceptance_checks": [
+        "answer states available evidence is insufficient",
+        "answer does not invent facts outside selected source",
+        "citations are absent because the selected source does not support the question",
+        "quality_filters.evidence_sufficiency is insufficient"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The model may answer confidently when the user's evidence set does not support the question."
+    },
+    {
+      "id": "actionable-selected-source-refuses-when-directional-evidence-missing",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_same_asset_background_without_directional_evidence",
+        "description": "Use a selected copper background source, then ask for next-week price direction and trading advice."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py -q",
+      "acceptance_checks": [
+        "answer states selected evidence is insufficient for the actionable request",
+        "quality_filters.insufficient_evidence_reason is selected_sources_actionable_question_requires_directional_evidence",
+        "LLM is not called when the selected evidence lacks directional or trading basis",
+        "citations are absent because topical overlap alone is not treated as support"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The system may turn loosely related background material into unsupported price direction or trading advice."
+    },
+    {
+      "id": "time-sensitive-selected-source-refuses-when-time-window-evidence-missing",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_directional_source_without_date_or_horizon",
+        "description": "Use a selected directional copper source without a date or forecast horizon, then ask for next-week direction and trading advice."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py -q",
+      "acceptance_checks": [
+        "answer states selected evidence is insufficient for the requested time window",
+        "quality_filters.insufficient_evidence_reason is selected_sources_temporal_question_requires_time_window_evidence",
+        "LLM is not called when the selected evidence lacks date, recency, or horizon support",
+        "published_at metadata is accepted as a source time anchor, while upload created_at is not exposed as freshness evidence"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "apps/backend/tests/test_chat_scope_resolution.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The system may reuse undated directional views as if they supported current, recent, or next-week decisions."
+    },
+    {
+      "id": "current-selected-source-refuses-when-temporal-evidence-is-stale",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_old_directional_source_with_explicit_horizon",
+        "description": "Use a selected copper source with an old publication date and ask for current next-week direction and trading advice."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py -q",
+      "acceptance_checks": [
+        "answer states selected evidence is stale for the current question",
+        "quality_filters.insufficient_evidence_reason is selected_sources_temporal_evidence_is_stale_for_current_question",
+        "LLM is not called when the latest selected-source time anchor is too old",
+        "UI trust receipt can distinguish stale evidence from missing time-window evidence"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "apps/frontend/tests/trustReceipt.test.mjs",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The system may present old directional evidence as if it supported current or near-term decisions."
+    },
+    {
+      "id": "selected-source-refuses-when-requested-horizon-conflicts-with-evidence-horizon",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_next_quarter_directional_source_with_next_week_question",
+        "description": "Use a selected source that explicitly supports next-quarter copper direction, then ask for next-week direction and trading advice."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py -q",
+      "acceptance_checks": [
+        "answer states selected evidence is insufficient because the requested horizon conflicts with the evidence horizon",
+        "quality_filters.insufficient_evidence_reason is selected_sources_temporal_horizon_mismatch",
+        "LLM is not called when selected evidence supports a different explicit forecast period",
+        "UI trust receipt can distinguish horizon mismatch from missing or stale temporal evidence"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "apps/frontend/tests/trustReceipt.test.mjs",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The system may use long-horizon or quarter-horizon evidence to answer short-horizon trading questions."
+    },
+    {
+      "id": "selected-source-refuses-when-structured-claim-horizon-conflicts-with-question",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_selected_source_with_medium_horizon_claim_and_next_week_question",
+        "description": "Use a selected source with a structured medium-horizon copper claim, then ask for next-week direction and trading advice."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py -q",
+      "acceptance_checks": [
+        "answer states selected structured claim evidence is insufficient because the claim horizon conflicts with the requested horizon",
+        "quality_filters.insufficient_evidence_reason is selected_sources_claim_temporal_horizon_mismatch",
+        "LLM is not called even though a structured claim citation exists",
+        "claims_used and citations are zero in the user-visible response"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "apps/frontend/tests/trustReceipt.test.mjs",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "Structured claim citations may bypass raw-source sufficiency gates and support the wrong decision horizon."
+    },
+    {
+      "id": "selected-source-refuses-when-structured-claim-validity-window-is-not-active",
+      "priority": "P0",
+      "workflow": "chat",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "structured_claim_with_future_valid_from",
+        "description": "Use a selected source with a structured claim whose valid_from is in the future, then ask for current next-week trading guidance."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py::test_selected_scope_sufficiency_refuses_structured_claim_not_yet_valid apps/backend/tests/test_semantic_search_quality_filters.py::test_semantic_search_excludes_claims_not_yet_valid -q",
+      "acceptance_checks": [
+        "semantic_search exclude_expired filters out claims whose valid_from is after the reference time",
+        "selected-source sufficiency returns selected_sources_claim_validity_window_mismatch for not-yet-active structured citations",
+        "trust receipt labels and explains the validity-window mismatch",
+        "the rule is deterministic and does not require an LLM call"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_selected_scope_insufficient_evidence.py",
+        "apps/backend/tests/test_semantic_search_quality_filters.py",
+        "apps/frontend/tests/trustReceipt.test.mjs",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The system may use structured views before they are effective or after they expire, weakening time-sensitive decision reliability."
+    },
+    {
+      "id": "briefing-selected-source-refuses-when-actionable-evidence-missing",
+      "priority": "P0",
+      "workflow": "briefing",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_same_asset_background_without_directional_evidence",
+        "description": "Use a selected copper background source, then ask briefing mode to generate next-week price direction and trading guidance."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_briefing_source_scope.py -q",
+      "acceptance_checks": [
+        "briefing quality_filters.evidence_sufficiency is insufficient",
+        "briefing recommended_action is watch instead of directional or actionable",
+        "LLM call count is zero when selected evidence lacks directional or trading basis",
+        "claims_used and source_claim_ids are zero in the user-visible response"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_briefing_source_scope.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "Briefing mode may bypass chat sufficiency gates and turn loosely related background material into unsupported trading summaries."
+    },
+    {
+      "id": "briefing-renders-required-sections",
+      "priority": "P0",
+      "workflow": "briefing",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_scope_acceptance_session",
+        "description": "Use scope acceptance to create a briefing response in the chat session."
+      },
+      "command": "npm.cmd run ui:acceptance",
+      "acceptance_checks": [
+        "briefing_api_returns_selected_scope passes",
+        "briefing_evidence_payload_ready passes",
+        "UI contains briefing conclusion, evidence, trust receipt, and trace surfaces"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/scope_acceptance_*.json",
+        "docs/verification/frontend-ui-acceptance-latest.json"
+      ],
+      "risk_if_missing": "Briefing mode could degrade into an unstructured answer without evidence or reference time."
+    },
+    {
+      "id": "briefing-detail-preserves-quality-filters-and-source-scope",
+      "priority": "P0",
+      "workflow": "briefing",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "persisted_briefing_with_job_summary_quality_filters",
+        "description": "Persist a briefing and matching JobRun result summary, then fetch the briefing detail endpoint."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_briefing_detail_trace.py -q",
+      "acceptance_checks": [
+        "GET /api/v1/briefings/{id} returns decision_guardrail and llm_trace from JobRun",
+        "GET /api/v1/briefings/{id} returns quality_filters from JobRun",
+        "GET /api/v1/briefings/{id} returns claims_used, source_claim_ids, and source scope",
+        "briefing detail keeps enough context for later audit and trust receipt rendering"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_briefing_detail_trace.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "A user can see quality and scope data immediately after generation, but lose that trust context when reopening the briefing detail later."
+    },
+    {
+      "id": "committee-records-seat-traces",
+      "priority": "P0",
+      "workflow": "committee",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_scope_acceptance_session",
+        "description": "Use committee acceptance with selected source and trace persistence."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m app.verification.scope_acceptance",
+      "acceptance_checks": [
+        "committee_api_returns_selected_scope passes",
+        "committee_evidence_payload_ready passes",
+        "committee_decision_trace_persisted includes retrieval, scope, quality, guardrail, and llm_call"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/scope_acceptance_*.json"
+      ],
+      "risk_if_missing": "Committee output would be hard to audit and could lose role-specific evidence grounding."
+    },
+    {
+      "id": "committee-selected-source-refuses-when-actionable-evidence-missing",
+      "priority": "P0",
+      "workflow": "committee",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "seeded_same_asset_background_without_directional_evidence",
+        "description": "Use a selected copper background source, then ask committee mode for next-week price direction and operating guidance."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_decision_trace_integration.py::test_committee_refuses_selected_source_without_actionable_evidence -q",
+      "acceptance_checks": [
+        "committee quality_filters.evidence_sufficiency is insufficient",
+        "committee recommended_action is watch and direction is neutral",
+        "no debate rounds are generated when selected evidence lacks directional or trading basis",
+        "LLM call count is zero and data_sources.claims.count is zero"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_decision_trace_integration.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "Committee mode may bypass chat and briefing sufficiency gates, creating a false sense of rigor around unsupported evidence."
+    },
+    {
+      "id": "committee-detail-preserves-quality-filters-and-source-scope",
+      "priority": "P0",
+      "workflow": "committee",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "persisted_committee_debate_with_job_summary_quality_filters",
+        "description": "Persist a committee debate and matching JobRun result summary, then fetch the committee detail endpoint."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_decision_trace_integration.py::test_committee_refuses_selected_source_without_actionable_evidence -q",
+      "acceptance_checks": [
+        "GET /api/v1/committee/{id} returns decision_guardrail and llm_trace from JobRun",
+        "GET /api/v1/committee/{id} returns quality_filters from JobRun",
+        "GET /api/v1/committee/{id} returns claims_used and selected source scope",
+        "committee detail keeps enough context for later audit and trust receipt rendering"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_decision_trace_integration.py",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "A user can see committee evidence sufficiency immediately after generation, but lose that trust context when reopening the debate detail later."
+    },
+    {
+      "id": "committee-detail-renders-trust-receipt-and-source-scope",
+      "priority": "P0",
+      "workflow": "committee",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "mocked_committee_detail_with_selected_source_insufficient_evidence",
+        "description": "Mock a committee detail response with quality filters, selected-source scope, guardrail, and llm_trace, then open the /debate detail page."
+      },
+      "command": "cd apps\\frontend; npm.cmd run ui:acceptance",
+      "acceptance_checks": [
+        "debate detail renders a collapsed trust receipt for selected-source insufficient evidence",
+        "debate detail shows source scope count and claims_used count",
+        "expanded trust receipt shows model call count and effective guardrail action",
+        "decision chat trust receipt behavior still passes after extracting the shared component"
+      ],
+      "evidence_artifacts": [
+        "apps/frontend/tests/decision-chat-flow.ui.spec.ts",
+        "docs/verification/frontend-ui-acceptance-latest.json"
+      ],
+      "risk_if_missing": "The backend can preserve committee trust context while users reopening the detail page still cannot see why the decision was cautious or whether the selected-source scope was applied."
+    },
+    {
+      "id": "upload-ingestion-progress-reaches-source-id",
+      "priority": "P0",
+      "workflow": "ingestion",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "small_text_upload",
+        "description": "Upload a marked text file and process it through synchronous and asynchronous ingestion paths."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m app.verification.mvp_acceptance",
+      "acceptance_checks": [
+        "upload_txt_creates_source passes",
+        "ingestion_process_completes passes",
+        "async_ingestion_progress_observable passes",
+        "async_progress_survives_memory_tracker_loss passes"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/mvp_acceptance_*.json"
+      ],
+      "risk_if_missing": "Users cannot trust that uploaded files were actually parsed, indexed, and made available for answers."
+    },
+    {
+      "id": "answer-output-shape-no-raw-json-or-prompt-leak",
+      "priority": "P0",
+      "workflow": "answer_integrity",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "mocked_llm_answer_and_quality_report",
+        "description": "Use deterministic chat and utility tests to verify user-facing answer normalization."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_answer_normalizer.py apps/backend/tests/test_chat_quality_report.py apps/backend/tests/test_decision_guardrail.py apps/backend/tests/test_scope_acceptance_contract.py -q",
+      "acceptance_checks": [
+        "raw JSON answer payloads are normalized into readable text",
+        "prompt leakage and language mismatch produce visible integrity warnings",
+        "reference_time is visible in answer content, not only stored in payload metadata",
+        "scope acceptance UI contains trust receipt and citation surfaces"
+      ],
+      "evidence_artifacts": [
+        "pytest output",
+        "docs/verification/scope_acceptance_*.json"
+      ],
+      "risk_if_missing": "Users may see raw fields, prompt fragments, missing reference-time anchors, or malformed answers in the primary chat surface."
+    },
+    {
+      "id": "answer-integrity-blocks-uncited-material-claims",
+      "priority": "P0",
+      "workflow": "answer_integrity",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "quality_report_with_cited_background_and_uncited_action_sentence",
+        "description": "Build a chat quality report where one sentence cites evidence but a later material action sentence has no citation."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest apps/backend/tests/test_chat_quality_report.py -q; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cd apps\\frontend; node tests\\trustReceipt.test.mjs",
+      "acceptance_checks": [
+        "quality_report emits uncited_material_claim when a material judgement sentence lacks a valid citation",
+        "quality_report.decision_ready is false for the uncited material claim case",
+        "evidence.uncited_material_claim_count and uncited_material_claims are populated",
+        "frontend trust receipt parses and surfaces the uncited material claim signal"
+      ],
+      "evidence_artifacts": [
+        "apps/backend/tests/test_chat_quality_report.py",
+        "apps/frontend/tests/trustReceipt.test.mjs",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "An answer may cite one safe sentence while adding an unsupported recommendation or directional claim later in the response."
+    },
+    {
+      "id": "decision-quality-controlled-contract-validates",
+      "priority": "P0",
+      "workflow": "answer_integrity",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "versioned_decision_quality_contract_suite",
+        "path": "evals/decision-quality/suite.json",
+        "description": "Validate the controlled decision-quality cases, thresholds, source annotations, and product-owner promotion boundary."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m app.verification.decision_quality_eval --validate-only --fail-on-error",
+      "acceptance_checks": [
+        "all seven required decision-risk categories are present and structurally valid",
+        "fact units map only to citations inside the exact selected-source scope",
+        "abstention cases require cautious guardrail outcomes and forbid actionable language",
+        "model promotion remains blocked until the product owner reviews a representative real-source corpus"
+      ],
+      "evidence_artifacts": [
+        "evals/decision-quality/suite.json",
+        "docs/verification/decision-quality-eval-latest.json",
+        "apps/backend/tests/test_decision_quality_eval.py"
+      ],
+      "risk_if_missing": "A model or prompt change could pass transport and UI tests while regressing factual support, citation attribution, temporal or geographic scope, abstention, or operation safety."
+    },
+    {
+      "id": "frontend-production-build-passes",
+      "priority": "P0",
+      "workflow": "frontend",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "frontend_source_tree",
+        "description": "Run the frontend production build script from apps/frontend."
+      },
+      "command": "npm.cmd run build",
+      "acceptance_checks": [
+        "TypeScript compilation completes without errors",
+        "Vite production build completes and writes dist assets"
+      ],
+      "evidence_artifacts": [
+        "apps/frontend/package.json",
+        "docs/verification/main_workflow_eval_runner_latest.json"
+      ],
+      "risk_if_missing": "The UI acceptance flow could pass in the dev server while the frontend still fails to compile or build for production."
+    },
+    {
+      "id": "real-scoped-chat-records-reference-time-and-citations",
+      "priority": "P1",
+      "workflow": "live_smoke",
+      "mode": "live_optional",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "sops_openrouter_selected_source_chat",
+        "description": "Seed selected and excluded sources, require a real OpenRouter fusion call, and verify selected-source scoped chat grounding."
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m app.verification.real_scope_chat_acceptance",
+      "acceptance_checks": [
+        "fusion model OpenRouter ping succeeds before chat",
+        "chat response uses selected_sources scope and returns citation entries only for the selected source",
+        "live chat returns a non-empty real-model answer with grounding terms",
+        "reference_time is visible in the answer content, not only stored in metadata"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/real_scope_chat_acceptance_*.json",
+        "docs/verification/main_workflow_eval_manifest_latest.json"
+      ],
+      "risk_if_missing": "The standard eval manifest may omit the Python real-model scoped-chat acceptance path, allowing real answer grounding, citation, or reference-time regressions to go unnoticed."
+    },
+    {
+      "id": "live-smoke-records-llm-trace-cost-tokens",
+      "priority": "P1",
+      "workflow": "live_smoke",
+      "mode": "live_optional",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "sops_openrouter_selected_source_chat",
+        "description": "Start a temporary backend with SOPS-injected OpenRouter key and run one selected-source live chat."
+      },
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\\smoke_live_main_flow.ps1",
+      "acceptance_checks": [
+        "OpenRouter connection test succeeds",
+        "live chat returns at least one citation",
+        "llm_trace records model call count, duration, tokens, and cost"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/live-main-flow-smoke-latest.json"
+      ],
+      "risk_if_missing": "The deterministic suite could pass while real model routing, cost, latency, or trace observability is broken."
+    },
+    {
+      "id": "trace-debate-synthetic-demo",
+      "priority": "P0",
+      "workflow": "committee",
+      "mode": "deterministic",
+      "coverage_status": "implemented",
+      "fixture": {
+        "type": "decision_trace_replay_fixture",
+        "path": "evals/main-workflow/trace_eval_replay_fixtures/trace-debate-synthetic-demo.json",
+        "candidate_id": "trace-debate-synthetic-demo"
+      },
+      "command": ".\\.venv\\Scripts\\python.exe -m app.verification.trace_eval_replay --fixture ..\\..\\evals\\main-workflow\\trace_eval_replay_fixtures\\trace-debate-synthetic-demo.json",
+      "acceptance_checks": [
+        "replay fixture preserves the original committee trace event count",
+        "replay fixture recomputes the same trigger reasons from event snapshots",
+        "replay fixture preserves source ids without reading the live database"
+      ],
+      "evidence_artifacts": [
+        "docs/verification/trace_eval_review_manifest_latest.json",
+        "evals/main-workflow/trace_eval_replay_fixtures/trace-debate-synthetic-demo.json"
+      ],
+      "risk_if_missing": "Historical committee trace failures could remain review-only and regress without deterministic replay coverage.",
+      "reviewer_note": "Self-contained trace replay fixture exported and validated before promotion to the canonical eval manifest.",
+      "trace_trigger_reasons": [
+        "quality:structured_quality_not_ready",
+        "llm:mock"
+      ],
+      "trace_event_ids": [
+        "01KWPRYHQV5T3P8F9G0YZRDZHF",
+        "01KWPRYHQV5T3P8F9G0YZRDZHG",
+        "01KWPRYHQV5T3P8F9G0YZRDZHH",
+        "01KWPRYHQV5T3P8F9G0YZRDZHJ",
+        "01KWPRYHQWGJP7EXH60HYSQ5YN",
+        "01KWPRYHQWGJP7EXH60HYSQ5YP",
+        "01KWPRYHQWGJP7EXH60HYSQ5YQ"
+      ]
+    }
+  ]
+}

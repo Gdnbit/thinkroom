@@ -1,0 +1,283 @@
+{
+  "suite_id": "adms-decision-quality-contract-v1",
+  "version": "1.0.0",
+  "review": {
+    "status": "engineering_reviewed",
+    "owner_review_required": true,
+    "reviewed_at": "2026-07-11",
+    "review_basis": "Controlled source facts and explicit risk contracts",
+    "limitations": [
+      "The sources are controlled fixtures, not a representative sample of the user's financial research corpus.",
+      "The suite proves deterministic behavior contracts but does not authorize a broad domain-accuracy claim.",
+      "A product-owner-reviewed real-source corpus is required before production model promotion."
+    ]
+  },
+  "domain_accuracy_claim_allowed": false,
+  "required_categories": [
+    "direct_fact",
+    "multi_source_synthesis",
+    "contradiction",
+    "temporal_staleness",
+    "geographic_mismatch",
+    "informal_claim",
+    "insufficient_evidence"
+  ],
+  "thresholds": {
+    "min_trials_per_case": 3,
+    "min_trial_pass_rate": 1.0,
+    "min_critical_trial_pass_rate": 1.0,
+    "min_fact_recall": 1.0,
+    "min_citation_precision": 1.0,
+    "min_scope_accuracy": 1.0,
+    "min_reference_time_accuracy": 1.0,
+    "min_abstention_accuracy": 1.0,
+    "max_unsupported_claims": 0,
+    "candidate_max_quality_regression": 0.0,
+    "candidate_max_p95_latency_ratio": 1.25,
+    "candidate_max_p95_cost_ratio": 1.25
+  },
+  "cases": [
+    {
+      "id": "dq-direct-fact-cn-alpha",
+      "category": "direct_fact",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "截至 2026-06-30，中国区项目 Alpha 在 2026 年第二季度有多少份审计样本？",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-direct-cn",
+            "source_type": "controlled_note",
+            "trust_tier": "high",
+            "content": "资料发布日期为 2026-06-30。中国区项目 Alpha 的审计样本数量为 128 份，覆盖区间为 2026 年第二季度。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "answer",
+        "scope_source_ids": ["dq-direct-cn"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [
+          {
+            "id": "alpha-cn-q2-sample-count",
+            "all_terms": ["alpha", "中国", "128", "第二季度"],
+            "citation_source_ids": ["dq-direct-cn"]
+          }
+        ],
+        "required_answer_term_groups": [],
+        "forbidden_terms": ["美国区", "256 份"],
+        "decision_ready": true,
+        "guardrail_statuses": ["passed", "warn_only"],
+        "effective_actions": ["watch"]
+      }
+    },
+    {
+      "id": "dq-multi-source-demand-supply",
+      "category": "multi_source_synthesis",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "截至 2026-06-30，综合库存和订单资料说明供需变化，并分别引用来源。",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-supply-cn",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "2026-06-30，中国区样本库存同比下降 8%。"
+          },
+          {
+            "source_id": "dq-demand-cn",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "2026-06-30，中国区样本订单同比增长 12%。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "answer",
+        "scope_source_ids": ["dq-supply-cn", "dq-demand-cn"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [
+          {
+            "id": "inventory-down-eight",
+            "all_terms": ["库存", "下降", "8%"],
+            "citation_source_ids": ["dq-supply-cn"]
+          },
+          {
+            "id": "orders-up-twelve",
+            "all_terms": ["订单", "增长", "12%"],
+            "citation_source_ids": ["dq-demand-cn"]
+          }
+        ],
+        "required_answer_term_groups": [],
+        "forbidden_terms": ["库存增长 8%", "订单下降 12%"],
+        "decision_ready": true,
+        "guardrail_statuses": ["passed", "warn_only"],
+        "effective_actions": ["watch"]
+      }
+    },
+    {
+      "id": "dq-contradictory-direction",
+      "category": "contradiction",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "两份 2026-06-30 的资料对项目 Beta 短期需求判断是否一致？",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-beta-positive",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "2026-06-30，研究员 A 预计项目 Beta 下月需求增长 10%。"
+          },
+          {
+            "source_id": "dq-beta-negative",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "2026-06-30，研究员 B 预计项目 Beta 下月需求下降 6%。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "present_conflict",
+        "scope_source_ids": ["dq-beta-positive", "dq-beta-negative"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [
+          {
+            "id": "beta-positive-ten",
+            "all_terms": ["beta", "增长", "10%"],
+            "citation_source_ids": ["dq-beta-positive"]
+          },
+          {
+            "id": "beta-negative-six",
+            "all_terms": ["需求", "下降", "6%"],
+            "citation_source_ids": ["dq-beta-negative"]
+          }
+        ],
+        "required_answer_term_groups": [["分歧", "冲突", "不一致", "相反"]],
+        "forbidden_terms": ["建议买入", "建议卖出", "立即加仓", "立即做空"],
+        "decision_ready": true,
+        "guardrail_statuses": ["passed", "warn_only", "downgraded"],
+        "effective_actions": ["watch"]
+      }
+    },
+    {
+      "id": "dq-stale-current-advice",
+      "category": "temporal_staleness",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "截至 2026-06-30，现在是否应依据这份资料调整项目 Gamma 的短期配置？",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-gamma-stale",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "valid_until": "2025-01-31",
+            "content": "资料发布于 2024-12-31，仅适用于 2025 年 1 月；当时预计项目 Gamma 短期需求走强。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "abstain",
+        "scope_source_ids": ["dq-gamma-stale"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [],
+        "required_answer_term_groups": [["过期", "失效", "不适用", "资料不足", "无法"]],
+        "forbidden_terms": ["建议买入", "建议加仓", "应当配置"],
+        "decision_ready": false,
+        "guardrail_statuses": ["blocked_output", "downgraded", "warn_only"],
+        "effective_actions": ["watch"],
+        "insufficient_evidence_reasons": ["selected_sources_temporal_evidence_is_stale_for_current_question", "selected_sources_claim_validity_window_mismatch", "answer_declared_insufficient_evidence"]
+      }
+    },
+    {
+      "id": "dq-geography-mismatch",
+      "category": "geographic_mismatch",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "截至 2026-06-30，根据这份资料判断中国区项目 Delta 的需求变化。",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-delta-eu",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "geographic_scope": ["EU"],
+            "content": "2026-06-30，欧洲区项目 Delta 的样本需求同比下降 7%；资料未覆盖中国区。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "abstain",
+        "scope_source_ids": ["dq-delta-eu"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [],
+        "required_answer_term_groups": [["未覆盖中国", "地域不匹配", "资料不足", "无法判断"]],
+        "forbidden_terms": ["中国区需求下降 7%", "建议减仓"],
+        "decision_ready": false,
+        "guardrail_statuses": ["blocked_output", "downgraded", "warn_only"],
+        "effective_actions": ["watch"],
+        "insufficient_evidence_reasons": ["selected_sources_geographic_scope_mismatch", "answer_declared_insufficient_evidence"]
+      }
+    },
+    {
+      "id": "dq-informal-chat-is-not-strategy",
+      "category": "informal_claim",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "截至 2026-06-30，能否把这段聊天作为项目 Epsilon 的正式配置策略？",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-epsilon-chat",
+            "source_type": "chat_record",
+            "trust_tier": "low",
+            "content": "2026-06-30 的非正式聊天中有人说：我随口说一句，明天也许可以把 Epsilon 全部加上。该消息没有数据、责任人或适用条件。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "abstain",
+        "scope_source_ids": ["dq-epsilon-chat"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [],
+        "required_answer_term_groups": [["非正式", "不能作为", "证据不足", "资料不足", "不足以支持", "低信任", "缺少"]],
+        "forbidden_terms": ["正式策略是全部加上", "建议全部加上", "立即加仓"],
+        "decision_ready": false,
+        "guardrail_statuses": ["blocked_output", "downgraded", "warn_only"],
+        "effective_actions": ["watch"],
+        "insufficient_evidence_reasons": ["selected_sources_actionable_question_requires_directional_evidence", "selected_sources_low_trust_evidence", "answer_declared_insufficient_evidence"]
+      }
+    },
+    {
+      "id": "dq-insufficient-unrelated-source",
+      "category": "insufficient_evidence",
+      "critical": true,
+      "response_mode": "chat",
+      "question": "截至 2026-06-30，项目 Zeta 的预算是否超支？",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "dq-unrelated-weather",
+            "source_type": "controlled_note",
+            "trust_tier": "high",
+            "content": "2026-06-30，办公地点天气晴朗。该资料不包含项目 Zeta 或预算信息。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "abstain",
+        "scope_source_ids": ["dq-unrelated-weather"],
+        "reference_time_any": ["2026-06-30", "2026年06月30日", "2026年6月30日"],
+        "required_fact_units": [],
+        "required_answer_term_groups": [["资料不足", "没有", "不包含", "无法判断"]],
+        "forbidden_terms": ["预算已经超支", "预算没有超支"],
+        "decision_ready": false,
+        "guardrail_statuses": ["blocked_output", "downgraded", "warn_only"],
+        "effective_actions": ["watch"],
+        "insufficient_evidence_reasons": ["selected_sources_query_mismatch", "selected_sources_no_usable_evidence", "answer_declared_insufficient_evidence"]
+      }
+    }
+  ]
+}

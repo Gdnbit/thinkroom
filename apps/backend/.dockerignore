@@ -1,0 +1,42 @@
+# 虚拟环境 / 构建产物
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# 本地 SQLite / 日志 / 上传
+*.db
+*.db-wal
+*.db-shm
+*.log
+uploads/
+logs/
+
+# 编辑器 / OS 元文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 环境文件（production env 通过 docker compose env_file/secrets 注入）
+.env
+.env.*
+!.env.example
+
+# 测试产物
+.coverage
+coverage.xml
+htmlcov/
+
+# Git
+.git/
+.gitignore

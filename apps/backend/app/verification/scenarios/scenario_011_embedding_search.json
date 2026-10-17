@@ -1,0 +1,64 @@
+{
+  "scenario_id": "scenario_011_embedding_search",
+  "name": "Embedding 与语义搜索验证",
+  "description": "验证统一 OpenRouter Embedding 向量生成正常（当前配置 dim=2560），以及多语言别名展开是否匹配中英文 asset_scope",
+  "seed_data": {
+    "raw_sources": [],
+    "claims": [
+      {
+        "id": "cl_embed_001",
+        "summary": "OIL crude oil OPEC减产支撑油价中期看多",
+        "claim_type": "asset_view",
+        "stance": "bullish",
+        "time_horizon": "medium",
+        "asset_scope": ["石油", "OIL", "原油"],
+        "theme_scope": ["OPEC", "减产"],
+        "confidence": 0.85
+      },
+      {
+        "id": "cl_embed_002",
+        "summary": "比特币BTC链上活跃度下降短期偏空",
+        "claim_type": "asset_view",
+        "stance": "bearish",
+        "time_horizon": "short",
+        "asset_scope": ["BTC", "比特币", "Bitcoin"],
+        "theme_scope": ["链上数据"],
+        "confidence": 0.75
+      }
+    ],
+    "strategies": []
+  },
+  "actions": [
+    {
+      "type": "check_embedding",
+      "text": "石油价格上涨对通胀的影响",
+      "expect_dim": 2560,
+      "label": "中文文本向量生成"
+    },
+    {
+      "type": "check_embedding",
+      "text": "crude oil WTI Brent price outlook",
+      "expect_dim": 2560,
+      "label": "英文文本向量生成"
+    },
+    {
+      "type": "check_alias_search",
+      "query": "石油走势分析",
+      "asset_filter": "OIL",
+      "expect_min_results": 1,
+      "label": "中文石油→OIL别名召回"
+    },
+    {
+      "type": "check_alias_search",
+      "query": "bitcoin outlook",
+      "asset_filter": "BTC",
+      "expect_min_results": 1,
+      "label": "英文BTC别名召回"
+    }
+  ],
+  "expected_assertions": [
+    { "type": "no_unexpected_error", "name": "Embedding与搜索无异常" },
+    { "type": "embedding_all_passed", "name": "所有向量维度正确" },
+    { "type": "alias_search_all_passed", "name": "所有别名召回成功" }
+  ]
+}

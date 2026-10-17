@@ -1,0 +1,390 @@
+name: CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ------------------------------------------------------------
+  # Job 1: Backend — pytest 离线子集 + alembic 升级
+  # ------------------------------------------------------------
+  backend:
+    name: Backend (pytest + alembic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            apps/backend/requirements.txt
+            apps/backend/requirements-dev.txt
+
+      - name: Public source integrity
+        run: python scripts/check_public_source.py
+
+      - name: Privacy scanner unit tests
+        run: python -m unittest discover -s scripts/tests -p test_audit_open_source.py
+
+      - name: Install system libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmagic1 libpq-dev
+
+      - name: Install Python deps
+        working-directory: apps/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Python dependency audit (pip-audit)
+        shell: pwsh
+        run: ./scripts/audit_backend_python.ps1 -Python python -RequirementsPath apps/backend/requirements-dev.txt -OutputPath docs/verification/backend-python-dev-audit-latest.json
+
+      - name: Test report isolation guard
+        run: python scripts/check_test_report_isolation.py apps/backend/tests
+
+      - name: Verification report hygiene guard
+        run: python scripts/check_verification_reports.py docs/verification --fail-on-issue
+
+      - name: Production compose config guard
+        run: python scripts/check_production_compose_config.py --env-file apps/backend/.env.prod.example --fail-on-error
+
+      - name: Alembic upgrade head (SQLite)
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: sqlite:///./_ci_alembic.db
+          APP_ENV: test
+          APP_API_KEY: ""
+          OPENROUTER_API_KEY: ""
+        run: |
+          alembic upgrade head
+          # 断言到达当前唯一 HEAD，避免新增迁移后 CI 仍硬编码旧 revision。
+          EXPECTED_HEAD="$(alembic heads | awk 'NF {print $1}')"
+          test "$(echo "$EXPECTED_HEAD" | wc -l)" -eq 1
+          alembic current | grep -q "$EXPECTED_HEAD"
+          # alembic check 必须无新 drift（双向）
+          alembic check
+
+      - name: Pytest — 离线全量（-m "not online"）
+        working-directory: apps/backend
+        env:
+          DATABASE_URL: sqlite:///./_ci_test.db
+          APP_ENV: test
+          APP_API_KEY: ""
+          OPENROUTER_API_KEY: ""
+          COINGECKO_API_KEY: ""
+          FRED_API_KEY: ""
+          ALPHA_VANTAGE_API_KEY: ""
+          REDIS_URL: ""
+          LOG_DIR: ""
+          SENTRY_DSN: ""
+        run: |
+          # 跑整个 tests/ 目录，排除 @pytest.mark.online 标记的用例（真实 LLM / 外网 API）
+          # 当前：425 离线 + 29 online（marker 见各 test 文件顶部或类/函数装饰）
+          python -m pytest tests/ -m "not online" -q --tb=short --maxfail=5
+
+  # ------------------------------------------------------------
+  # Job 2: Doctor pass — Postgres + pgvector 集成（防 doctor pass 修过的 10 坑回归）
+  # 起 ankane/pgvector service container：
+  # - alembic upgrade head 双方言（SQLite + PG）+ alembic check 零 drift
+  # - SQLite→PG 全链路迁移（含 FK 孤儿场景）
+  # - verify_migration --allow-orphans
+  # ------------------------------------------------------------
+  doctor-pass:
+    name: Doctor pass (PG + pgvector integration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    services:
+      postgres:
+        image: ankane/pgvector
+        env:
+          POSTGRES_DB: drill_db
+          POSTGRES_USER: drill
+          POSTGRES_PASSWORD: drill_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U drill -d drill_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            apps/backend/requirements.txt
+            apps/backend/requirements-dev.txt
+
+      - name: Install system libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmagic1 libpq-dev postgresql-client
+
+      - name: Install Python deps
+        working-directory: apps/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Wait for Postgres + enable vector extension
+        env:
+          PGPASSWORD: drill_pass
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U drill -d drill_db && break
+            sleep 1
+          done
+          psql -h localhost -p 5432 -U drill -d drill_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          psql -h localhost -p 5432 -U drill -d drill_db -c "SELECT extname, extversion FROM pg_extension WHERE extname='vector';"
+
+      - name: Alembic upgrade head + check (PG)
+        working-directory: apps/backend
+        env:
+          PGPASSWORD: drill_pass
+          PGVECTOR_ENABLED: "true"
+          EMBEDDING_DIM: "2560"
+          APP_ENV: test
+          APP_API_KEY: ""
+          OPENROUTER_API_KEY: ""
+          LOG_DIR: ""
+          SENTRY_DSN: ""
+        run: |
+          export DATABASE_URL="postgresql://drill:${PGPASSWORD}"@localhost:5432/drill_db
+          alembic upgrade head
+          EXPECTED_HEAD="$(alembic heads | awk 'NF {print $1}')"
+          test "$(echo "$EXPECTED_HEAD" | wc -l)" -eq 1
+          alembic current | grep -q "$EXPECTED_HEAD"
+          # PG 端 alembic check 必须无 drift（doctor pass 第 11 坑：JSONB↔JSON 误报已由 env.py compare_type 修复）
+          alembic check
+
+      - name: Pytest — PG 集成测试（@pytest.mark.pg）
+        working-directory: apps/backend
+        env:
+          PGPASSWORD: drill_pass
+          DATABASE_URL: sqlite:///./_ci_pg.db
+          PGVECTOR_ENABLED: "true"
+          EMBEDDING_DIM: "2560"
+          APP_ENV: test
+          APP_API_KEY: ""
+          OPENROUTER_API_KEY: ""
+          LOG_DIR: ""
+          SENTRY_DSN: ""
+        run: |
+          export DRILL_PG_URL="postgresql://drill:${PGPASSWORD}"@localhost:5432/drill_db
+          python -m pytest tests/test_migration_scripts_pg.py -m pg -v --tb=short
+
+  # ------------------------------------------------------------
+  # Job 3: Frontend — tsc + vite build
+  # ------------------------------------------------------------
+  frontend:
+    name: Frontend (tsc + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Windows startup script contract tests
+        run: node --test scripts/tests/*.test.mjs
+
+      - name: Install deps
+        working-directory: apps/frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Frontend unit tests
+        working-directory: apps/frontend
+        run: npm run test:unit
+
+      - name: Frontend release evidence
+        run: python scripts/run_frontend_release_checks.py --fail-on-error
+
+      - name: Upload frontend release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-release-checks
+          path: docs/verification/frontend-release-checks-latest.json
+          if-no-files-found: warn
+
+      - name: Report bundle size
+        working-directory: apps/frontend
+        run: |
+          echo "### Frontend bundle size" >> $GITHUB_STEP_SUMMARY
+          du -sh dist >> $GITHUB_STEP_SUMMARY || true
+          ls -lah dist/assets | head -20 >> $GITHUB_STEP_SUMMARY || true
+
+  # ------------------------------------------------------------
+  # Job 3: Docker — 多阶段镜像构建冒烟
+  # ------------------------------------------------------------
+  docker-build:
+    name: Docker build (multi-stage)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [backend, frontend]  # 只有基础 CI 通过才构建镜像
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend prod image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/backend
+          file: ./apps/backend/Dockerfile
+          push: false
+          load: true
+          tags: ros-backend:ci
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build frontend prod image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/frontend
+          file: ./apps/frontend/Dockerfile
+          push: false
+          load: true
+          tags: ros-frontend:ci
+          build-args: |
+            VITE_API_URL=/api
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: Production guard rejects unsafe backend container config
+        run: |
+          set -euo pipefail
+          cleanup_backend_production_guard() {
+            docker rm -f ros-backend-production-guard >/dev/null 2>&1 || true
+          }
+          trap cleanup_backend_production_guard EXIT
+
+          docker run -d --name ros-backend-production-guard \
+            -e APP_ENV=production \
+            -e APP_DEBUG=false \
+            -e APP_API_KEY= \
+            -e DATABASE_URL=sqlite:///./smoke.db \
+            -e OPENROUTER_API_KEY= \
+            ros-backend:ci
+
+          container_status="unknown"
+          for i in {1..20}; do
+            container_status="$(docker inspect -f '{{.State.Status}}' ros-backend-production-guard)"
+            if [ "$container_status" = "exited" ]; then
+              break
+            fi
+            sleep 1
+          done
+
+          output="$(docker logs ros-backend-production-guard 2>&1)"
+          echo "$output"
+          if [ "$container_status" != "exited" ]; then
+            echo "expected production guard container to exit, got status=$container_status" >&2
+            exit 1
+          fi
+
+          exit_code="$(docker inspect -f '{{.State.ExitCode}}' ros-backend-production-guard)"
+          if [ "$exit_code" -eq 0 ]; then
+            echo "expected production guard to reject unsafe config" >&2
+            exit 1
+          fi
+          echo "$output" | grep -q "ProductionConfigError"
+
+      - name: Smoke test backend container (non-production liveness)
+        run: |
+          set -euo pipefail
+          cleanup_backend_smoke() {
+            docker logs ros-backend-smoke --tail 30 || true
+            docker rm -f ros-backend-smoke >/dev/null 2>&1 || true
+          }
+          trap cleanup_backend_smoke EXIT
+          # 启动生产镜像的非生产 profile（无外部依赖），检查 /health 能响应。
+          # 真实生产发布由 release gate / production dry-run 校验；这里不使用 APP_ENV=production + SQLite/空密钥绕过生产 guard。
+          docker run -d --name ros-backend-smoke \
+            -e APP_ENV=test \
+            -e APP_DEBUG=false \
+            -e APP_API_KEY= \
+            -e DATABASE_URL=sqlite:///./smoke.db \
+            -e OPENROUTER_API_KEY= \
+            -p 8000:8000 \
+            ros-backend:ci
+          # 等启动
+          backend_healthy=false
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
+              backend_healthy=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$backend_healthy" != "true" ]; then
+            echo "backend container did not become healthy" >&2
+            exit 1
+          fi
+          # 验证 health
+          curl -fsS http://localhost:8000/health
+          echo "backend healthy"
+
+      - name: Smoke test frontend container
+        run: |
+          set -euo pipefail
+          cleanup_frontend_smoke() {
+            docker logs ros-frontend-smoke --tail 30 || true
+            docker rm -f ros-frontend-smoke >/dev/null 2>&1 || true
+          }
+          trap cleanup_frontend_smoke EXIT
+          docker run -d --name ros-frontend-smoke -p 80:80 ros-frontend:ci
+          frontend_healthy=false
+          for i in {1..30}; do
+            if curl -fsS -o /dev/null http://localhost/health; then
+              frontend_healthy=true
+              break
+            fi
+            sleep 1
+          done
+          if [ "$frontend_healthy" != "true" ]; then
+            echo "frontend container did not become healthy" >&2
+            exit 1
+          fi
+          # 静态首页
+          curl -fsS -o /dev/null http://localhost/
+          echo "frontend healthy"

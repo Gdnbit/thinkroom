@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Research OS Integrated Chat Workflow Prototype</title>
+  <style>
+    :root {
+      --bg: #f5f2eb;
+      --panel: #fffdf8;
+      --soft: #f9f6ef;
+      --ink: #1d1f22;
+      --muted: #6d6b66;
+      --line: #ded7ca;
+      --strong: #c9bead;
+      --accent: #b87b2f;
+      --ok: #2e7d58;
+      --warn: #a36216;
+      --danger: #a33a31;
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #fffdf8, var(--bg));
+      color: var(--ink);
+    }
+    button, textarea { font: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 72px 1fr; }
+    .rail {
+      border-right: 1px solid var(--line);
+      background: rgba(255,253,248,.86);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 10px;
+    }
+    .mark {
+      width: 38px; height: 38px; border: 1px solid var(--strong); border-radius: 8px;
+      display: grid; place-items: center; font-weight: 800; color: var(--accent); background: var(--panel);
+    }
+    .rail button {
+      width: 44px; height: 44px; border: 1px solid transparent; border-radius: 8px;
+      background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 800;
+    }
+    .rail button.active, .rail button:hover { border-color: var(--line); background: var(--panel); color: var(--ink); }
+    .spacer { flex: 1; }
+    .workspace { min-width: 0; display: grid; grid-template-rows: 62px 1fr; }
+    .topbar {
+      border-bottom: 1px solid var(--line); padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,253,248,.82);
+    }
+    .title strong { display: block; font-size: 15px; }
+    .title small { color: var(--muted); font-size: 12px; }
+    .actions { display: flex; align-items: center; gap: 10px; }
+    .pill, .btn, .primary {
+      height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel);
+      padding: 0 11px; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+    .btn, .primary { cursor: pointer; color: var(--ink); font-weight: 700; }
+    .primary { color: #fffdf8; background: var(--ink); border-color: var(--ink); }
+    .content { min-height: 0; display: grid; grid-template-columns: minmax(560px,1fr) 360px; gap: 18px; padding: 18px; }
+    .chat, .side {
+      min-height: 0; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,248,.9);
+      box-shadow: 0 18px 45px rgba(43,37,27,.10); overflow: hidden;
+    }
+    .chat { display: grid; grid-template-rows: 50px minmax(0,1fr) auto; }
+    .head { border-bottom: 1px solid var(--line); background: var(--soft); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; }
+    h1, h2 { margin: 0; font-size: 15px; }
+    .tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .tabs button { height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; padding: 0 9px; }
+    .tabs button.active { background: #2a2620; color: #fffdf8; }
+    .messages { overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .msg { max-width: 78%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel); }
+    .msg.user { align-self: flex-end; background: #f2eadc; border-color: #d8c7ad; }
+    .msg.system { align-self: stretch; max-width: none; }
+    .meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+    .text { font-size: 14px; line-height: 1.65; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip {
+      min-height: 28px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px;
+      background: var(--soft); color: var(--muted); font-size: 12px; display: inline-flex; align-items: center;
+    }
+    .pipeline { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fffaf0; display: grid; gap: 10px; }
+    .pipeline-top { display: flex; justify-content: space-between; gap: 12px; }
+    .pipeline-title { font-size: 13px; font-weight: 800; }
+    .pipeline-sub { color: var(--muted); font-size: 12px; }
+    .stages { display: grid; grid-template-columns: repeat(5,1fr); gap: 7px; }
+    .stage { min-height: 54px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: rgba(255,253,248,.82); }
+    .stage strong { display: block; font-size: 12px; margin-bottom: 4px; }
+    .stage small { color: var(--muted); font-size: 11px; }
+    .stage.done { border-color: rgba(46,125,88,.34); background: rgba(46,125,88,.07); }
+    .stage.active { border-color: rgba(184,123,47,.50); background: rgba(184,123,47,.09); }
+    .summary { border-left: 3px solid var(--accent); padding-left: 12px; font-size: 14px; line-height: 1.65; }
+    .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 12px; }
+    .mini { border: 1px solid var(--line); border-radius: 8px; background: var(--soft); padding: 10px; min-height: 94px; }
+    .mini h3 { margin: 0 0 8px; font-size: 12px; }
+    .mini p, .mini li { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .mini ul { margin: 0; padding-left: 16px; }
+    .answer-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .composer { border-top: 1px solid var(--line); padding: 12px; background: var(--soft); }
+    .drop {
+      border: 1px solid var(--strong); border-radius: 8px; background: var(--panel); display: grid;
+      grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: end; padding: 10px;
+    }
+    .drop.dragging { border-color: #0f766e; box-shadow: 0 0 0 4px rgba(15,118,110,.10); }
+    .tool { width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); cursor: pointer; font-weight: 800; }
+    textarea { width: 100%; min-height: 42px; max-height: 120px; resize: vertical; border: 0; outline: none; background: transparent; color: var(--ink); line-height: 1.5; }
+    .hint { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 8px; gap: 12px; }
+    .side { display: grid; grid-template-rows: 50px 1fr; }
+    .side-body { overflow: auto; padding: 14px; display: grid; align-content: start; gap: 12px; }
+    .section { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 12px; }
+    .section h3 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 10px; font-size: 13px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; min-height: 30px; font-size: 12px; color: var(--muted); border-top: 1px solid rgba(222,215,202,.74); padding-top: 8px; margin-top: 8px; }
+    .row:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+    .badge { border-radius: 999px; border: 1px solid var(--line); padding: 3px 7px; font-size: 11px; color: var(--muted); background: var(--soft); white-space: nowrap; }
+    .badge.ok { color: var(--ok); border-color: rgba(46,125,88,.34); }
+    .badge.warn { color: var(--warn); border-color: rgba(163,98,22,.34); }
+    .link { border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 800; cursor: pointer; padding: 0; }
+    @media (max-width: 1120px) { .content { grid-template-columns: 1fr; } .side { min-height: 420px; } }
+    @media (max-width: 760px) {
+      .app { grid-template-columns: 1fr; } .rail { display: none; } .topbar { padding: 0 14px; }
+      .pill, .btn { display: none; } .content { padding: 10px; } .msg { max-width: none; }
+      .stages, .grid { grid-template-columns: 1fr; } .drop { grid-template-columns: auto 1fr; } .drop .primary { grid-column: 1/-1; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="rail">
+      <div class="mark">RO</div>
+      <button class="active" title="对话">问</button>
+      <button title="资料">料</button>
+      <button title="记录">记</button>
+      <button title="状态">态</button>
+      <button title="高级">高</button>
+      <div class="spacer"></div>
+      <button title="设置">设</button>
+    </aside>
+    <main class="workspace">
+      <header class="topbar">
+        <div class="title"><strong>Research OS</strong><small>资料驱动的审慎决策工作台</small></div>
+        <div class="actions">
+          <span class="pill"><span class="dot"></span>资料库可用</span>
+          <span class="pill"><span class="dot"></span>外部数据正常</span>
+          <button class="btn">查看记录</button>
+          <button class="primary">保存快照</button>
+        </div>
+      </header>
+      <section class="content">
+        <section class="chat">
+          <div class="head">
+            <h1>决策问答</h1>
+            <div class="tabs"><button class="active">自动</button><button>仅资料</button><button>审议</button></div>
+          </div>
+          <div class="messages">
+            <article class="msg user">
+              <div class="meta"><span>你</span><span>刚刚</span></div>
+              <div class="text">请基于这些资料，判断当前是否适合继续加仓，并说明风险。</div>
+              <div class="chips"><span class="chip">Q1_report.pdf</span><span class="chip">manager_call.md</span><span class="chip">fund_position.xlsx</span></div>
+            </article>
+            <article class="msg system">
+              <div class="pipeline">
+                <div class="pipeline-top">
+                  <div><div class="pipeline-title">资料处理</div><div class="pipeline-sub">3 个文件，已提取 42 条观点，12 条可引用证据</div></div>
+                  <button class="link">展开详情</button>
+                </div>
+                <div class="stages">
+                  <div class="stage done"><strong>接收</strong><small>文件已保存</small></div>
+                  <div class="stage done"><strong>解析</strong><small>文本和表格</small></div>
+                  <div class="stage done"><strong>切片</strong><small>证据单元</small></div>
+                  <div class="stage active"><strong>入库</strong><small>向量与索引</small></div>
+                  <div class="stage"><strong>可用</strong><small>回答引用</small></div>
+                </div>
+              </div>
+            </article>
+            <article class="msg system">
+              <div class="meta"><span>系统回答</span><span>基于已上传资料，未使用外部实时行情</span></div>
+              <div class="summary">当前更适合维持观察或小幅分批，而不是一次性加仓。上传资料支持“基本面未恶化”，但对估值、资金流和短期波动的确认不足。</div>
+              <div class="grid">
+                <div class="mini"><h3>依据</h3><p>管理层电话会和持仓表显示仓位集中度上升，但现金流假设仍依赖下季度兑现。</p></div>
+                <div class="mini"><h3>风险</h3><ul><li>估值安全边际不足</li><li>缺少最新价格验证</li><li>单一来源观点偏多</li></ul></div>
+                <div class="mini"><h3>可操作逻辑</h3><p>仅依据上传资料，建议先设观察阈值，再用小比例分批验证。</p></div>
+              </div>
+              <div class="chips"><span class="chip">引用 12 条</span><span class="chip">冲突 2 条</span><span class="chip">缺口 3 项</span></div>
+              <div class="answer-actions"><button class="btn">查看证据</button><button class="btn">打开审议过程</button><button class="btn">补充外部数据</button><button class="primary">保存为决策快照</button></div>
+            </article>
+          </div>
+          <footer class="composer">
+            <div class="drop" id="drop"><button class="tool">+</button><textarea placeholder="拖入资料或输入问题。只上传资料时，我会先完成入库并返回摘要。"></textarea><button class="primary" id="simulate">发送</button></div>
+            <div class="hint"><span>拖入文件自动上传，处理状态会显示在对话中</span><span>Enter 发送，Shift+Enter 换行</span></div>
+          </footer>
+        </section>
+        <aside class="side">
+          <div class="head"><h2>上下文</h2><button class="link">收起</button></div>
+          <div class="side-body">
+            <section class="section"><h3>资料 <span class="badge ok">可引用</span></h3><div class="row"><span>已保存文件</span><strong>3</strong></div><div class="row"><span>解析成功</span><strong>3</strong></div><div class="row"><span>观点卡</span><strong>42</strong></div><div class="row"><span>引用证据</span><strong>12</strong></div></section>
+            <section class="section"><h3>数据状态 <span class="badge ok">正常</span></h3><div class="row"><span>知识库</span><span class="badge ok">在线</span></div><div class="row"><span>外部行情</span><span class="badge warn">未用于回答</span></div><div class="row"><span>质量监控</span><span class="badge ok">无阻塞</span></div></section>
+            <section class="section"><h3>决策记录 <span class="badge warn">未保存</span></h3><div class="row"><span>审议轮次</span><strong>1</strong></div><div class="row"><span>风险项</span><strong>3</strong></div><div class="row"><span>待补充</span><strong>最新价格、资金流、同业对比</strong></div></section>
+            <section class="section"><h3>高级入口</h3><div class="row"><span>资料审计</span><button class="link">打开</button></div><div class="row"><span>来源画像</span><button class="link">打开</button></div><div class="row"><span>验证中心</span><button class="link">打开</button></div><div class="row"><span>系统设置</span><button class="link">打开</button></div></section>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+  <script>
+    const drop = document.getElementById('drop');
+    ['dragenter','dragover'].forEach((name) => drop.addEventListener(name, (event) => { event.preventDefault(); drop.classList.add('dragging'); }));
+    ['dragleave','drop'].forEach((name) => drop.addEventListener(name, (event) => { event.preventDefault(); drop.classList.remove('dragging'); }));
+    document.getElementById('simulate').addEventListener('click', () => {
+      const stages = Array.from(document.querySelectorAll('.stage'));
+      stages.forEach((stage, index) => setTimeout(() => {
+        stages.forEach((item, itemIndex) => { item.classList.toggle('done', itemIndex <= index); item.classList.toggle('active', itemIndex === index && index < stages.length - 1); });
+      }, index * 420));
+    });
+  </script>
+</body>
+</html>

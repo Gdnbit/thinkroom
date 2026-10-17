@@ -1,0 +1,42 @@
+{
+  "scenario_id": "scenario_007_invalidation",
+  "name": "反证压制验证",
+  "description": "验证 invalidated Claim 不再出现在默认 active 召回结果中。",
+  "seed_data": {
+    "raw_sources": [],
+    "claims": [
+      {
+        "id": "clm_test_007_active",
+        "summary": "BTC将在2024年创历史新高（有效观点）",
+        "stance": "bullish",
+        "asset_scope": ["BTC"],
+        "theme_scope": ["测试"],
+        "status": "active",
+        "confidence": 0.8
+      },
+      {
+        "id": "clm_test_007_inv",
+        "summary": "此观点已被明确反证，不应再被召回",
+        "stance": "bearish",
+        "asset_scope": ["BTC"],
+        "theme_scope": ["测试"],
+        "status": "active",
+        "confidence": 0.5
+      }
+    ],
+    "events": [],
+    "market_states": [],
+    "flow_signals": [],
+    "strategies": []
+  },
+  "actions": [
+    { "type": "invalidate_claim", "claim_id": "clm_test_007_inv", "reason": "场景测试：手动反证" },
+    { "type": "retrieve_claims", "asset": "BTC", "status": "active" }
+  ],
+  "expected_assertions": [
+    { "type": "object_status_equals", "name": "被反证Claim状态=invalidated", "object": "claim_card", "id": "clm_test_007_inv", "value": "invalidated" },
+    { "type": "retrieval_excludes_object", "name": "invalidated不出现在active召回中", "object_id": "clm_test_007_inv" },
+    { "type": "retrieval_includes_object", "name": "有效Claim仍可召回", "object_id": "clm_test_007_active" },
+    { "type": "lifecycle_log_exists", "name": "反证日志已写入", "claim_id": "clm_test_007_inv", "to_status": "invalidated" }
+  ]
+}

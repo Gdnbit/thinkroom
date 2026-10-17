@@ -1,0 +1,51 @@
+{
+  "scenario_id": "scenario_010_intent_recognition",
+  "name": "意图识别验证",
+  "description": "验证 IntentRecognitionSkill 规则层与 LLM 层对六类典型问题的意图分类是否正确",
+  "seed_data": {},
+  "actions": [
+    {
+      "type": "check_intent",
+      "question": "石油最近走势怎么看？",
+      "expect_assets": ["OIL"],
+      "expect_debate": true,
+      "label": "石油辩论意图"
+    },
+    {
+      "type": "check_intent",
+      "question": "比特币BTC短期能涨到10万吗",
+      "expect_assets": ["BTC"],
+      "expect_mode": "asset_analysis",
+      "label": "BTC资产分析意图"
+    },
+    {
+      "type": "check_intent",
+      "question": "美联储降息对宏观经济的影响",
+      "expect_mode": "macro",
+      "label": "宏观意图识别"
+    },
+    {
+      "type": "check_intent",
+      "question": "我上传的那篇高盛报告里说了什么？",
+      "expect_mode": "knowledge_query",
+      "label": "私域知识库查询"
+    },
+    {
+      "type": "check_intent",
+      "question": "什么是资金费率？",
+      "expect_mode": "chat",
+      "label": "一般性问答"
+    },
+    {
+      "type": "check_intent",
+      "question": "黄金GOLD现在多空分歧严重吗",
+      "expect_assets": ["GOLD"],
+      "expect_debate": true,
+      "label": "黄金辩论意图"
+    }
+  ],
+  "expected_assertions": [
+    { "type": "no_unexpected_error", "name": "所有意图识别无异常" },
+    { "type": "intent_all_passed", "name": "全部意图分类正确" }
+  ]
+}

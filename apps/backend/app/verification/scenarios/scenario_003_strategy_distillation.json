@@ -1,0 +1,38 @@
+{
+  "scenario_id": "scenario_003_strategy_distillation",
+  "name": "策略文章蒸馏",
+  "description": "验证包含策略规则的文章能正确生成 StrategyCard，entry/exit/risk 被提取，source link 正确建立。",
+  "seed_data": {
+    "raw_sources": [
+      {
+        "id": "src_test_003",
+        "title": "BTC动量策略手册",
+        "source_type": "note",
+        "raw_text": "BTC动量策略：入场条件：BTC价格突破20日均线且成交量放大1.5倍以上；资金费率为正且连续3天以上；RSI在50-70之间。出场规则：价格跌破20日均线收盘即离场；或RSI超过80后的第一个阴线收盘离场。风险控制：单笔最大亏损不超过本金的2%；止损设在入场价下方3%。",
+        "speaker_hint": "",
+        "theme_hint": "策略 加密",
+        "status": "pending"
+      }
+    ],
+    "claims": [],
+    "events": [],
+    "market_states": [],
+    "flow_signals": [],
+    "strategies": []
+  },
+  "actions": [
+    {
+      "type": "run_strategy_distillation",
+      "source_id": "src_test_003"
+    }
+  ],
+  "expected_assertions": [
+    { "type": "object_exists", "name": "RawSource已入库", "object": "raw_source", "id": "src_test_003" },
+    { "type": "object_count_equals", "name": "至少生成1条Strategy", "object": "strategy_card", "min": 1 },
+    { "type": "strategy_linked_to_source", "name": "Strategy已关联到Source", "source_id": "src_test_003" },
+    { "type": "field_not_empty", "name": "entry_conditions已提取", "object": "strategy_card", "field": "entry_conditions" },
+    { "type": "field_not_empty", "name": "exit_rules已提取", "object": "strategy_card", "field": "exit_rules" },
+    { "type": "field_not_empty", "name": "risk_factors已提取", "object": "strategy_card", "field": "risk_factors" },
+    { "type": "job_run_completed", "name": "Distillation JobRun已完成", "job_type": "strategy_distillation" }
+  ]
+}

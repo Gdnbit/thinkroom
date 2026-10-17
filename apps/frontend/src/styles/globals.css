@@ -1,0 +1,315 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+@layer base {
+  :root {
+    /* ── GDNbit Warm Slate palette ── */
+    --gdn-primary-50:  #f6f7f9;
+    --gdn-primary-100: #eceef2;
+    --gdn-primary-200: #d5d9e2;
+    --gdn-primary-300: #b1b9c9;
+    --gdn-primary-400: #8793ab;
+    --gdn-primary-500: #6a7891;
+    --gdn-primary-600: #556177;
+    --gdn-primary-700: #465061;
+    --gdn-primary-800: #3c4452;
+    --gdn-primary-900: #353c46;
+    --gdn-primary-950: #23282f;
+
+    /* ── Surface stack (dark defaults — #141414 base) ── */
+    --background:   0 0% 8%;          /* #141414 warm deep black */
+    --surface-1:    220 6% 10%;
+    --surface-2:    220 6% 13%;       /* card level */
+    --surface-3:    220 5% 17%;       /* elevated / hover */
+
+    --card:         220 6% 11%;
+    --card-foreground: 220 13% 91%;
+
+    /* ── Typography ── */
+    --foreground:   220 13% 91%;      /* gray-50 equivalent */
+    --foreground-2: 220 9% 68%;       /* gray-300 */
+    --foreground-3: 220 7% 46%;       /* gray-500 */
+
+    --secondary:    220 5% 15%;
+    --secondary-foreground: 220 9% 72%;
+    --muted:        220 5% 12%;
+    --muted-foreground: 220 7% 46%;
+
+    /* ── Borders ── */
+    --border:       220 5% 20%;       /* gray-700/40 feel */
+    --border-subtle: 220 5% 16%;
+    --input:        220 5% 17%;
+
+    /* ── Accent: warm amber (restrained) ── */
+    --primary:           38 72% 58%;
+    --primary-foreground: 0 0% 8%;
+    --primary-dim:       38 50% 50%;
+
+    /* ── Semantic ── */
+    --accent:        158 44% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive:   2 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --ring:          38 72% 58%;
+
+    /* ── Geometry ── */
+    --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+  }
+}
+
+/* ── Light mode (#FAFAF8) ── */
+.light {
+  --background:   43 20% 98%;       /* #FAFAF8 */
+  --surface-1:    40 14% 95%;
+  --surface-2:    40 12% 92%;
+  --surface-3:    40 10% 88%;
+
+  --card:         0 0% 100%;
+  --card-foreground: 224 20% 14%;
+
+  --foreground:   224 20% 14%;      /* gray-900 */
+  --foreground-2: 224 12% 38%;      /* gray-600 */
+  --foreground-3: 224 8% 56%;       /* gray-500 */
+
+  --secondary:    40 12% 93%;
+  --secondary-foreground: 224 14% 30%;
+  --muted:        40 10% 95%;
+  --muted-foreground: 224 8% 46%;
+
+  --border:       40 10% 84%;       /* gray-200/60 feel */
+  --border-subtle: 40 8% 90%;
+  --input:        40 10% 92%;
+
+  --primary:           38 75% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-dim:       38 60% 55%;
+
+  --accent:        158 44% 38%;
+  --accent-foreground: 0 0% 100%;
+  --destructive:   2 65% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --ring:          38 75% 48%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+  }
+  /* ── 响应式根字号：大屏自动放大整个 UI ──
+     Tailwind 的 text-xs/sm 等都是 rem 基数；改变 html font-size 会等比缩放全部文字/内边距。 */
+  @media (min-width: 1536px) { /* 2xl */
+    html { font-size: 16.5px; }
+  }
+  @media (min-width: 1920px) { /* FHD+ / 2K 显示器 */
+    html { font-size: 17.5px; }
+  }
+  @media (min-width: 2400px) { /* 4K / 5K 显示器 */
+    html { font-size: 19px; }
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'IBM Plex Sans', 'IBM Plex Sans SC', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01', 'ss02', 'cv11'; /* Plex 无歧义 I/l/0/1 变体 */
+    line-height: 1.625;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  /* Smooth theme switch */
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 180ms;
+    transition-timing-function: ease;
+  }
+
+  /* Serif titles */
+  h1, h2, h3 {
+    font-family: 'IBM Plex Serif', Georgia, 'Source Han Serif SC', 'Songti SC', serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Mono elements */
+  .font-mono, code, kbd, pre, .tabular-nums {
+    font-family: 'IBM Plex Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    font-feature-settings: 'zero', 'ss05'; /* 斜杠零 + 单层 a 字形 */
+  }
+
+  /* ── Scrollbars ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+
+  /* ── Focus ring ── */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary) / 0.5);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* ── Skip link (a11y: 键盘用户跳过 sidebar 直接到 main) ──
+     默认 visually hidden（不破坏布局），获得焦点时显示在左上角。 */
+  .skip-link {
+    position: absolute;
+    left: 0.5rem;
+    top: -3rem;
+    z-index: 100;
+    padding: 0.5rem 0.75rem;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 200ms ease;
+  }
+  .skip-link:focus {
+    top: 0.5rem;
+    outline: 2px solid hsl(var(--primary-foreground) / 0.6);
+    outline-offset: 2px;
+  }
+
+  /* main content 容器获得 focus 时不显 outline (skip link 跳过去后) */
+  main:focus { outline: none; }
+
+  /* ── Transitions for interactive elements ── */
+  button, a, [role="button"] {
+    transition: color 200ms ease, background-color 200ms ease,
+                border-color 200ms ease, opacity 200ms ease;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  /* ── Zone Header (大块功能分区标题，用于 Settings 等多区页面) ── */
+  .zone-header {
+    @apply flex items-baseline gap-3 mb-4 pb-2;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .zone-header .zone-title {
+    @apply text-lg 2xl:text-xl font-semibold text-foreground tracking-tight;
+    font-family: 'IBM Plex Serif', Georgia, 'Source Han Serif SC', serif;
+  }
+  .zone-header .zone-eyebrow {
+    @apply text-[10px] 2xl:text-xs font-mono font-medium uppercase tracking-[0.2em];
+    color: hsl(var(--primary));
+  }
+  .zone-header .zone-desc {
+    @apply text-xs 2xl:text-sm text-muted-foreground ml-auto;
+  }
+
+  /* ── Section Label (magazine feel) ── */
+  .section-label {
+    @apply text-xs font-sans font-medium uppercase mb-3;
+    letter-spacing: 0.15em;
+    color: var(--gdn-primary-500);
+  }
+  .light .section-label {
+    color: var(--gdn-primary-600);
+  }
+
+  /* ── Page Header ── */
+  .page-header {
+    @apply mb-12 pb-8;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* ── Card ── */
+  .card {
+    @apply rounded-xl border p-6 transition-all duration-300;
+    background: hsl(var(--card));
+    border-color: hsl(var(--border));
+  }
+  .card:hover {
+    border-color: hsl(var(--border) / 0.8);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  /* ── Tag ── */
+  .tag {
+    @apply text-xs font-medium rounded-md px-2.5 py-1 transition-colors duration-200;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--secondary));
+  }
+  .tag:hover {
+    color: hsl(var(--foreground));
+    background: hsl(var(--surface-3, var(--secondary)));
+  }
+
+  /* ── Button — Primary ── */
+  .btn-primary {
+    @apply rounded-lg px-5 py-2.5 text-sm font-medium tracking-wide;
+    background: var(--gdn-primary-600);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--gdn-primary-700); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  /* ── Button — Outline ── */
+  .btn-outline {
+    @apply rounded-lg px-5 py-2.5 text-sm font-medium border bg-transparent;
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground-2, var(--muted-foreground)));
+  }
+  .btn-outline:hover {
+    border-color: var(--gdn-primary-500);
+    color: var(--gdn-primary-600);
+  }
+  .btn-outline:active { transform: scale(0.97); }
+
+  /* ── Surfaces ── */
+  .surface {
+    background: hsl(var(--card));
+    border-radius: var(--radius);
+  }
+  .surface-tonal {
+    background: hsl(var(--surface-2, var(--card)));
+    border-radius: var(--radius);
+  }
+
+  /* ── Divider ── */
+  .divider {
+    border-top: 1px solid hsl(var(--border-subtle, var(--border)));
+  }
+
+  /* ── Badge ── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium;
+  }
+
+  /* ── Filter button group (筛选按钮组) ── */
+  .filter-btn {
+    @apply text-sm px-3.5 py-1.5 rounded-md transition-colors duration-200;
+    color: hsl(var(--muted-foreground));
+  }
+  .filter-btn:hover {
+    color: hsl(var(--foreground));
+    background: hsl(var(--secondary));
+  }
+  .filter-btn-active {
+    @apply text-sm px-3.5 py-1.5 rounded-md font-medium;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+}

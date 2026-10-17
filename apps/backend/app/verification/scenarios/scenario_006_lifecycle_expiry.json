@@ -1,0 +1,35 @@
+{
+  "scenario_id": "scenario_006_lifecycle_expiry",
+  "name": "Lifecycle 过期验证",
+  "description": "验证已超过 valid_until 的 Claim 在 lifecycle scan 后正确进入 expired 状态，lifecycle_logs 写入正确。",
+  "seed_data": {
+    "raw_sources": [],
+    "claims": [
+      {
+        "id": "clm_test_006_expired",
+        "summary": "这是一条已过期的测试观点，valid_until 设在过去",
+        "stance": "bullish",
+        "asset_scope": ["BTC"],
+        "theme_scope": ["测试"],
+        "status": "active",
+        "confidence": 0.5,
+        "time_horizon": "immediate",
+        "valid_until_offset_days": -1
+      }
+    ],
+    "events": [],
+    "market_states": [],
+    "flow_signals": [],
+    "strategies": []
+  },
+  "actions": [
+    {
+      "type": "run_lifecycle_scan"
+    }
+  ],
+  "expected_assertions": [
+    { "type": "object_status_equals", "name": "过期Claim状态=expired", "object": "claim_card", "id": "clm_test_006_expired", "value": "expired" },
+    { "type": "lifecycle_log_exists", "name": "过期日志已写入", "claim_id": "clm_test_006_expired", "to_status": "expired" },
+    { "type": "no_unexpected_error", "name": "无意外错误" }
+  ]
+}

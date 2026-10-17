@@ -1,0 +1,62 @@
+{
+  "macro": {
+    "label": "宏观",
+    "children": {
+      "monetary_policy": "货币政策",
+      "fiscal_policy": "财政政策",
+      "inflation": "通胀",
+      "growth": "增长",
+      "employment": "就业",
+      "liquidity": "流动性",
+      "global_risk": "全球风险",
+      "geopolitics": "地缘政治"
+    }
+  },
+  "market_structure": {
+    "label": "市场结构",
+    "children": {
+      "equity": "权益市场",
+      "fixed_income": "债券市场",
+      "fx": "外汇市场",
+      "commodity": "商品市场",
+      "crypto": "加密市场",
+      "derivatives": "衍生品",
+      "volatility": "波动率"
+    }
+  },
+  "micro": {
+    "label": "微观",
+    "children": {
+      "company_fundamental": "公司基本面",
+      "valuation": "估值",
+      "earnings": "盈利",
+      "cashflow": "现金流",
+      "balance_sheet": "资产负债",
+      "corporate_action": "公司行为"
+    }
+  },
+  "style_factor": {
+    "label": "风格因子",
+    "children": {
+      "value": "价值",
+      "growth": "成长",
+      "quality": "质量",
+      "momentum": "动量",
+      "size": "市值",
+      "dividend": "分红",
+      "sentiment": "情绪"
+    }
+  },
+  "strategy_execution": {
+    "label": "策略与执行",
+    "children": {
+      "timing": "择时",
+      "allocation": "资产配置",
+      "risk_control": "风险控制",
+      "positioning": "仓位管理",
+      "entry_exit": "进出场",
+      "hedging": "对冲",
+      "event_driven": "事件驱动"
+    }
+  }
+}

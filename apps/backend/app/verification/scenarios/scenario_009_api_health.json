@@ -1,0 +1,139 @@
+{
+  "scenario_id": "scenario_009_api_health",
+  "name": "API 接口健康检查",
+  "description": "检查所有主要 HTTP API 端点是否正常响应",
+  "seed_data": {},
+  "actions": [
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/knowledge/stats",
+      "expected_status": 200,
+      "expect_keys": [
+        "raw_sources",
+        "claims",
+        "strategies",
+        "briefings"
+      ]
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/knowledge/sources?limit=5",
+      "expected_status": 200,
+      "expect_keys": [
+        "items",
+        "total"
+      ]
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/knowledge/claims?limit=5",
+      "expected_status": 200,
+      "expect_keys": [
+        "items",
+        "total"
+      ]
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/knowledge/briefings?limit=5",
+      "expected_status": 200,
+      "expect_keys": [
+        "items",
+        "total"
+      ]
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/knowledge/setups?limit=5",
+      "expected_status": 200,
+      "expect_keys": [
+        "items",
+        "total"
+      ]
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/speakers?limit=5",
+      "expected_status": 200,
+      "expect_keys": [
+        "speakers",
+        "total"
+      ]
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/signals/macro",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/alerts?limit=5",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/briefings?limit=5",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/strategies?limit=5",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/watchlists",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/settings",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/verification/scenarios",
+      "expected_status": 200,
+      "expect_keys": []
+    },
+    {
+      "type": "check_api_endpoint",
+      "method": "GET",
+      "path": "/api/v1/outcomes?limit=5",
+      "expected_status": 200,
+      "expect_keys": []
+    }
+  ],
+  "expected_assertions": [
+    {
+      "type": "no_unexpected_error",
+      "name": "所有 API 端点无异常"
+    }
+  ]
+}

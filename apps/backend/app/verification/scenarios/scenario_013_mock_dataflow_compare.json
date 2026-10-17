@@ -1,0 +1,84 @@
+{
+  "scenario_id": "scenario_013_mock_dataflow_compare",
+  "name": "模拟数据流全链路对比验证",
+  "description": "使用纯模拟数据完成 上传→识别→切片/抽取→策略蒸馏→Setup评估→Briefing 端到端验证，并对比预期结果。",
+  "seed_data": {
+    "raw_sources": [
+      {
+        "id": "src_test_013",
+        "title": "美国CPI预告与一周观察窗口（模拟）",
+        "source_type": "note",
+        "raw_text": "【模拟来源】后天（2026-04-07）将公布美国CPI。若CPI低于预期，风险资产可能在随后一周（2026-04-07至2026-04-14）获得支撑；若高于预期，纳指与BTC可能承压。当前市场关注美债收益率方向与美元指数波动。建议在数据公布时重点观察：1）纳指开盘后2小时波动；2）BTC是否站稳关键均线；3）美元指数是否继续上行。",
+        "speaker_hint": "模拟研究员",
+        "theme_hint": "宏观数据 观察窗口 CPI",
+        "status": "pending"
+      }
+    ],
+    "claims": [],
+    "events": [],
+    "market_states": [],
+    "flow_signals": [],
+    "strategies": []
+  },
+  "actions": [
+    { "type": "run_ingestion", "source_id": "src_test_013" },
+    { "type": "run_strategy_distillation", "source_id": "src_test_013" },
+    { "type": "run_strategy_evaluate", "strategy_id": "stg_src_test_013", "asset": "BTC" },
+    { "type": "retrieve_claims", "asset": "BTC", "status": "active" },
+    { "type": "run_briefing", "question": "CPI公布后一周BTC与纳指的观察重点是什么？", "asset_scope": ["BTC"] }
+  ],
+  "expected_assertions": [
+    { "type": "object_exists", "name": "RawSource已入库", "object": "raw_source", "id": "src_test_013" },
+    { "type": "object_status_equals", "name": "RawSource状态=completed", "object": "raw_source", "id": "src_test_013", "value": "completed" },
+
+    { "type": "object_count_equals", "name": "至少生成1条Claim", "object": "claim_card", "min": 1 },
+    { "type": "claim_linked_to_source", "name": "Claim已关联到Source", "source_id": "src_test_013" },
+    { "type": "field_not_empty", "name": "Claim.valid_until已设置", "object": "claim_card", "field": "valid_until" },
+    { "type": "field_equals", "name": "Claim状态=active", "object": "claim_card", "field": "status", "value": "active" },
+    { "type": "lifecycle_log_exists", "name": "Lifecycle初始化日志存在", "to_status": "active" },
+
+    { "type": "object_count_equals", "name": "至少生成1条Strategy", "object": "strategy_card", "min": 1 },
+    { "type": "strategy_linked_to_source", "name": "Strategy已关联到Source", "source_id": "src_test_013" },
+
+    { "type": "object_count_equals", "name": "至少生成1个Setup", "object": "setup_card", "min": 1 },
+    { "type": "object_count_equals", "name": "至少生成1份Briefing", "object": "briefing_card", "min": 1 },
+    { "type": "field_not_empty", "name": "Briefing.direction已判定", "object": "briefing_card", "field": "direction" },
+    { "type": "field_not_empty", "name": "Briefing.executive_summary非空", "object": "briefing_card", "field": "executive_summary" },
+    { "type": "briefing_has_supporting_points", "name": "Briefing包含支撑要点" },
+    { "type": "briefing_has_contrary_points", "name": "Briefing包含反向要点" },
+    { "type": "field_not_empty", "name": "Briefing.key_risks非空", "object": "briefing_card", "field": "key_risks" },
+
+    { "type": "job_run_completed", "name": "Ingestion JobRun已完成", "job_type": "ingestion" },
+    { "type": "job_run_completed", "name": "Distillation JobRun已完成", "job_type": "strategy_distillation" },
+    { "type": "job_run_completed", "name": "Briefing JobRun已完成", "job_type": "briefing" },
+
+    { "type": "no_unexpected_error", "name": "全链路无意外错误" }
+  ],
+  "expected_comparison_template": {
+    "slicing_expected": {
+      "min_event_blocks": 2,
+      "must_include_keywords": ["CPI", "观察", "一周", "BTC", "纳指"]
+    },
+    "recognition_expected": {
+      "should_extract_time_signal": true,
+      "should_extract_window_hint": true,
+      "should_extract_assets": ["BTC"]
+    },
+    "io_expected": {
+      "source_status": "completed",
+      "claims_min": 1,
+      "strategies_min": 1,
+      "briefings_min": 1
+    },
+    "db_expected": {
+      "raw_source_persisted": true,
+      "claim_source_linked": true,
+      "strategy_source_linked": true,
+      "job_runs_recorded": ["ingestion", "strategy_distillation", "briefing"]
+    }
+  },
+  "ai_supervisor_recommendation": {
+    "model": "openai/gpt-5.4-mini",
+    "purpose": "对本场景输出做结构化评审，判断是否达到预期并给出修复建议"
+  }
+}

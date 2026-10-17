@@ -1,0 +1,14 @@
+# Dev-only 镜像：vite dev server + HMR，配合 docker-compose.yml 的 volume bind mount
+# 生产请用 Dockerfile（多阶段 nginx 产物）
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm install --no-audit --no-fund
+
+COPY . .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

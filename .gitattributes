@@ -1,0 +1,17 @@
+# Frontend source files are normalized to LF to avoid JSX/UTF-8 automation drift.
+apps/frontend/src/**/* text eol=lf
+apps/frontend/*.ts text eol=lf
+
+# Historical CRLF backend file: keep diff whitespace checks from flagging CR as trailing whitespace.
+apps/backend/app/skills/final_adjudication_skill.py whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+apps/backend/app/api/v1/outcomes.py whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+PRIVATE_SYNC.md whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# Historical recovery snapshots preserve their original bytes, including CRLF,
+# BOMs, trailing whitespace, and known mojibake. They are audit evidence, not source.
+docs/archive/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+
+# Pre-v0.1 optimization journals and generated verification reports are frozen
+# historical evidence. Preserve Markdown hard breaks and generator line endings.
+docs/optimization/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+docs/verification/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab

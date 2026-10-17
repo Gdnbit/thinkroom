@@ -1,0 +1,125 @@
+{
+  "suite_id": "adms-structured-workflow-quality-contract-v1",
+  "version": "1.0.0",
+  "review": {
+    "status": "engineering_reviewed",
+    "owner_review_required": true,
+    "reviewed_at": "2026-07-12",
+    "limitations": [
+      "Controlled fixtures validate workflow contracts, not broad financial-domain accuracy.",
+      "A product-owner-reviewed representative corpus is still required for domain-accuracy claims."
+    ]
+  },
+  "domain_accuracy_claim_allowed": false,
+  "workflows": ["briefing", "committee"],
+  "route_scopes": {
+    "briefing": "briefing_selected_source",
+    "committee": "committee_selected_source"
+  },
+  "thresholds": {
+    "min_trials_per_case": 3,
+    "min_trial_pass_rate": 1.0,
+    "min_fact_recall": 1.0,
+    "min_scope_accuracy": 1.0,
+    "max_unverified_material_fields": 0
+  },
+  "cases": [
+    {
+      "id": "swq-direct-fact-alpha",
+      "category": "direct_fact",
+      "critical": true,
+      "question": "截至 2026-06-30，仅根据选定资料说明中国区项目 Alpha 在 2026 年第二季度完成了多少份审计样本。",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "swq-alpha-cn",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "资料发布日期为 2026-06-30。中国区项目 Alpha 在 2026 年第二季度完成了 128 份审计样本。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "answer",
+        "scope_source_ids": ["swq-alpha-cn"],
+        "required_fact_units": [
+          {
+            "id": "alpha-cn-q2-samples",
+            "all_terms": ["Alpha", "中国区", "第二季度", "128"]
+          }
+        ],
+        "required_answer_term_groups": [],
+        "forbidden_terms": ["256 份", "美国区"],
+        "effective_actions": ["watch", "hold", "avoid"],
+        "model_call_policy": "required"
+      }
+    },
+    {
+      "id": "swq-conflict-beta",
+      "category": "contradiction",
+      "critical": true,
+      "question": "截至 2026-06-30，仅根据两份选定资料说明项目 Beta 下月需求判断是否一致，并保留分歧。",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "swq-beta-positive",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "2026-06-30，研究员 A 预计项目 Beta 下月需求增长 10%。"
+          },
+          {
+            "source_id": "swq-beta-negative",
+            "source_type": "controlled_report",
+            "trust_tier": "high",
+            "content": "2026-06-30，研究员 B 预计项目 Beta 下月需求下降 6%。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "present_conflict",
+        "scope_source_ids": ["swq-beta-positive", "swq-beta-negative"],
+        "required_fact_units": [
+          {
+            "id": "beta-up-ten",
+            "all_terms": ["Beta", "10%"],
+            "any_term_groups": [["增长", "+10%"]]
+          },
+          {
+            "id": "beta-down-six",
+            "all_terms": ["Beta", "6%"],
+            "any_term_groups": [["下降", "-6%"]]
+          }
+        ],
+        "required_answer_term_groups": [["分歧", "冲突", "不一致", "相反"]],
+        "forbidden_terms": ["立即买入", "立即卖出", "立即加仓", "立即做空"],
+        "effective_actions": ["watch", "hold", "avoid"],
+        "model_call_policy": "required"
+      }
+    },
+    {
+      "id": "swq-insufficient-zeta",
+      "category": "insufficient_evidence",
+      "critical": true,
+      "question": "截至 2026-06-30，仅根据选定资料判断项目 Zeta 的预算是否超支。",
+      "fixture": {
+        "sources": [
+          {
+            "source_id": "swq-unrelated-weather",
+            "source_type": "controlled_note",
+            "trust_tier": "high",
+            "content": "2026-06-30，办公地点天气晴朗。该资料不包含项目 Zeta 或预算信息。"
+          }
+        ]
+      },
+      "expected": {
+        "behavior": "abstain",
+        "scope_source_ids": ["swq-unrelated-weather"],
+        "required_fact_units": [],
+        "required_answer_term_groups": [["资料不足", "不包含", "无法判断", "不能"]],
+        "forbidden_terms": ["预算已经超支", "预算没有超支"],
+        "effective_actions": ["watch", "hold", "avoid"],
+        "model_call_policy": "forbidden"
+      }
+    }
+  ]
+}
