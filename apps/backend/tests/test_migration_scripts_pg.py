@@ -138,6 +138,14 @@ def test_alembic_upgrade_head_pg(pg_url, pg_engine):
     assert "No new upgrade operations detected" in out, \
         f"alembic check reported drift on PG:\n{out}"
 
+    # Alembic starts with VARCHAR(32); 0016 must widen it without changing IDs.
+    with pg_engine.connect() as connection:
+        width = connection.exec_driver_sql(
+            "SELECT character_maximum_length FROM information_schema.columns "
+            "WHERE table_schema='public' AND table_name='alembic_version' AND column_name='version_num'"
+        ).scalar_one()
+    assert width >= 37
+
 
 def test_decision_trace_source_links_backfill_pg(pg_url, pg_engine):
     """PG upgrade 0017 -> head must backfill decision trace source links.

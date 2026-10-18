@@ -54,7 +54,7 @@ def test_alembic_upgrade_head_sqlite_creates_required_indexes(tmp_path):
     current = _run_alembic(db_path, "current", timeout=30)
     current_out = (current.stdout or "") + (current.stderr or "")
     assert current.returncode == 0, f"alembic current failed:\n{current_out}"
-    assert "0020_job_run_scope_columns" in current_out
+    assert "0021_job_run_session_index" in current_out
 
     with sqlite3.connect(db_path) as conn:
         snapshot_indexes = conn.execute("PRAGMA index_list('decision_snapshots')").fetchall()
@@ -141,7 +141,21 @@ def test_job_run_scope_migration_accepts_columns_from_legacy_auto_repair(tmp_pat
         revision = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
 
     assert {"session_id", "source_ids", "object_scope"}.issubset(columns)
-    assert revision == "0020_job_run_scope_columns"
+    assert revision == "0021_job_run_session_index"
+
+
+def test_job_run_session_index_upgrade_downgrade_and_legacy_index(tmp_path):
+    db_path = tmp_path / "job_session_index.db"
+    assert _run_alembic(db_path, "upgrade", "0020_job_run_scope_columns").returncode == 0
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("CREATE INDEX idx_job_runs_session_id ON job_runs(session_id)")
+    assert _run_alembic(db_path, "upgrade", "head").returncode == 0
+    check = _run_alembic(db_path, "check")
+    assert check.returncode == 0, check.stdout + check.stderr
+    assert _run_alembic(db_path, "downgrade", "0020_job_run_scope_columns").returncode == 0
+    with sqlite3.connect(db_path) as conn:
+        assert "idx_job_runs_session_id" not in {row[1] for row in conn.execute("PRAGMA index_list(job_runs)")}
+    assert _run_alembic(db_path, "upgrade", "head").returncode == 0
 
 
 def test_alembic_upgrade_head_sqlite_backfills_decision_trace_source_links(tmp_path):

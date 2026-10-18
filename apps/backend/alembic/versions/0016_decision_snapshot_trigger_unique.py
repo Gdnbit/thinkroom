@@ -55,6 +55,22 @@ def _raise_duplicate_error(duplicates: list[tuple[str, str, int]]) -> None:
 
 
 def upgrade() -> None:
+    # Preserve revision identities shared with existing installations. PostgreSQL
+    # enforces Alembic's default VARCHAR(32), but this revision is 37 characters.
+    # Widen before Alembic records it; never shrink again on downgrade.
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        version_column = next(
+            column for column in sa.inspect(bind).get_columns("alembic_version")
+            if column["name"] == "version_num"
+        )
+        length = getattr(version_column["type"], "length", None)
+        if length is not None and length < 128:
+            op.alter_column(
+                "alembic_version", "version_num",
+                existing_type=version_column["type"], type_=sa.String(128),
+                existing_nullable=False,
+            )
     duplicates = _duplicate_trigger_objects()
     if duplicates:
         _raise_duplicate_error(duplicates)
