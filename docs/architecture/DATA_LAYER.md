@@ -1,4 +1,4 @@
-# Agent Decision Making System — 数据层架构设计文档
+# ThinkRoom — 数据层架构设计文档
 
 > **历史架构参考**：描述 2026-04 数据层，不是当前完成状态或 v0.1 验收依据。
 

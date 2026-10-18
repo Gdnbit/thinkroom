@@ -112,7 +112,7 @@ TEST_SAMPLES: List[Dict[str, Any]] = [
 
 
 # ── AI 评估 System Prompt ────────────────────────────────────
-_INGESTION_EVAL_SYSTEM = """你是 Research OS 的**素材解析质量评审专家**。
+_INGESTION_EVAL_SYSTEM = """你是 ThinkRoom 的**素材解析质量评审专家**。
 
 系统的 Ingestion Pipeline 负责将用户上传的金融研究素材转化为结构化知识：
 1. **文本拆分（Chunking）**：按段落切分长文本，每块 ≤32000 字符

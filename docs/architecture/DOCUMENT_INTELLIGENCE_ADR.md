@@ -11,7 +11,7 @@ Accepted for next-phase planning. MVP implementation remains incremental.
 
 ## Context
 
-Research OS needs to ingest user-provided private information sources and make cautious, evidence-linked decisions. The current MVP can parse and store text, normal PDFs, long text-layer PDFs, selected images, and long documents with deferred claim extraction. The main remaining risk is not a single parser bug; it is document variability:
+ThinkRoom needs to ingest user-provided private information sources and make cautious, evidence-linked decisions. The current MVP can parse and store text, normal PDFs, long text-layer PDFs, selected images, and long documents with deferred claim extraction. The main remaining risk is not a single parser bug; it is document variability:
 
 - text-layer PDFs can be long but usually parse deterministically;
 - scanned PDFs and screenshots require OCR or vision OCR;

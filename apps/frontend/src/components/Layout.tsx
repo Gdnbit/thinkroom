@@ -330,12 +330,12 @@ export default function Layout() {
       >
         <div className="mb-3 flex h-10 items-center">
           <NavLink to="/chat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <span className="font-serif text-sm font-semibold">私</span>
+            <span className="font-serif text-sm font-semibold">TR</span>
           </NavLink>
           {expanded && (
             <div className="ml-2.5 min-w-0">
-              <p className="truncate font-serif text-sm font-semibold leading-none text-foreground">私承 Sicheng</p>
-              <p className="mt-1 truncate text-[11px] leading-none text-muted-foreground">私域思想 · 多角色思辨</p>
+              <p className="truncate font-serif text-sm font-semibold leading-none text-foreground" title="ThinkRoom 思考间">ThinkRoom</p>
+              <p className="mt-1 truncate text-[11px] leading-none text-muted-foreground" title="让资料中的观点与思维方式参与新问题思考">思考间 · 多视角思考</p>
             </div>
           )}
           {expanded && (

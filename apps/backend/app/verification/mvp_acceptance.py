@@ -78,7 +78,7 @@ def run_acceptance(write_report: bool = True) -> dict[str, Any]:
 
         fixture_text = (
             f"{marker}\n"
-            "结论：当前 Research OS 的 MVP 演示应优先保证上传解析、证据引用、回答可追溯。\n"
+            "结论：当前 ThinkRoom 的 MVP 演示应优先保证上传解析、证据引用、回答可追溯。\n"
             "理由：用户需要先确认资料确实入库，再看到回答如何引用这些资料。\n"
             "风险：长文档和多文件场景需要异步队列、阶段进度和失败重试。"
         ).encode("utf-8")

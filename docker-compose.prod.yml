@@ -1,4 +1,4 @@
-# Production compose · Research OS
+# Production compose · ThinkRoom
 # ----------------------------------------------------------------------
 # 运行前准备：
 #   1. cp apps/backend/.env.prod.example apps/backend/.env.prod 并填入：

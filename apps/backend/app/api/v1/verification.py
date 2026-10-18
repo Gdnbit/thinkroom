@@ -392,7 +392,7 @@ class AiEvaluateRequest(BaseModel):
     api_count: int = 0
 
 
-_AI_EVAL_SYSTEM = """你是 Research OS（金融研究决策辅助系统）的**质量评审 AI**。
+_AI_EVAL_SYSTEM = """你是 ThinkRoom（金融研究决策辅助系统）的**质量评审 AI**。
 系统包含以下核心模块：
 - Ingestion Pipeline：原始观点入库 → 文本提取 → 摘要 → Claim 切片 → 质量评分 → 去重 → Embedding
 - Strategy Distillation：从长文提炼策略卡片 → SetupCard 评估

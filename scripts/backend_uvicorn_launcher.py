@@ -21,7 +21,7 @@ def open_log(path_value: str | None, fallback):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run the Research OS backend uvicorn process.")
+    parser = argparse.ArgumentParser(description="Run the ThinkRoom backend uvicorn process.")
     parser.add_argument("--python", required=True)
     parser.add_argument("--backend-dir", required=True)
     parser.add_argument("--host", default="127.0.0.1")

@@ -3,7 +3,7 @@
 > **延后范围**：本文是生产部署参考，不表示当前版本已获生产发布批准。任何执行都
 > 需要新的明确目标、目标环境证据和人工审批。
 
-> 适用场景:把 Research OS 从开发环境迁到**生产环境**（内网或公网）。
+> 适用场景:把 ThinkRoom 从开发环境迁到**生产环境**（内网或公网）。
 > 最近更新:2026-07-12（页级混合解析、受限接纳、Celery 摄取 Worker 与生产 fail-closed 门禁）
 >
 > 上线前必读：`PRE_LAUNCH_DRILL.md` (historical reference excluded from public source) — doctor pass 在隔离 PG 容器

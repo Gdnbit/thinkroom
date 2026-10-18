@@ -1,4 +1,4 @@
-# Research OS Local v0.1 Guide
+# ThinkRoom Local v0.1 Guide
 
 Last updated: 2026-07-12
 

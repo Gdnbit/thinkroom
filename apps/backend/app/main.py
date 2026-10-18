@@ -219,8 +219,8 @@ assert_production_safe()
 
 
 app = FastAPI(
-    title="Agent Decision Making System",
-    description="个人金融研究与决策辅助系统 API",
+    title="ThinkRoom API",
+    description="让资料中的观点、思维方式和不同思想视角参与新问题思考。",
     version="0.1.0",
     docs_url="/docs" if settings.APP_DEBUG else None,
     redoc_url="/redoc" if settings.APP_DEBUG else None,

@@ -1,4 +1,4 @@
-# Research OS V2 — 升级设计文档
+# ThinkRoom V2 — 升级设计文档
 
 > **历史设计参考**：记录 V2 方案，不是当前范围或未完成任务清单。
 
@@ -11,7 +11,7 @@
 | # | 建议 | 评估 |
 |---|------|------|
 | 1 | 保留 V1 主干 | 完全同意。当前 21 张表、5 MCP、12 Skill、5 Workflow 结构扎实，在其上增量升级 |
-| 2 | 产品重新定义为"Research OS for Decision" | 准确的定位升级。后续所有设计以此为锚 |
+| 2 | 产品重新定义为"ThinkRoom for Decision" | 准确的定位升级。后续所有设计以此为锚 |
 | 7 | EventCard 状态机（truth_status + outcome_status） | **本轮最高优先级**。当前 EventCard 仅 38 行，无真假/兑现追踪，是最大短板 |
 | 8 | SpeakerProfile V2（研究员画像） | 高价值。当前仅 name/trust_weight/domain_tags，缺乏多维画像 |
 | 10 | 新增 Committee Orchestrator | 高价值。当前委员会无条件全员出动，缺少动态编排层 |
@@ -47,7 +47,7 @@
 
 ## 一、系统重新定义
 
-**Research OS for Decision** — 以私域知识为核心、以公共证据为支撑、以动态委员会为推理中枢、以学习回放与执行经济性为闭环的个人研究与决策操作系统。
+**ThinkRoom for Decision** — 以私域知识为核心、以公共证据为支撑、以动态委员会为推理中枢、以学习回放与执行经济性为闭环的个人研究与决策操作系统。
 
 ### 核心原则
 

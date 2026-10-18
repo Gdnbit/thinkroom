@@ -444,7 +444,7 @@ def run_runtime_smoke(
             "question": (
                 f"【{marker}】请仅根据当前选定资料生成一份简短决策简报：先给结论，再说明证据、风险和下一步。"
                 if selected_scope
-                else f"【{marker}】请生成一份面向产品演示的 Research OS 主流程 readiness 简报，重点说明是否适合演示、主要风险、下一步。"
+                else f"【{marker}】请生成一份面向产品演示的 ThinkRoom 主流程 readiness 简报，重点说明是否适合演示、主要风险、下一步。"
             ),
             "asset": "GENERAL",
             "source_ids": source_ids,
