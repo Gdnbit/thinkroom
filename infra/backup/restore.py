@@ -49,8 +49,12 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
+from uuid import uuid4
 from pathlib import Path
 from typing import Optional
+
+from sqlite_support import check_integrity, require_offline, sqlite_path
 
 
 def _env(name: str, default: str) -> str:
@@ -101,7 +105,7 @@ def restore_postgres(database_url: str, dump_file: Path) -> bool:
     p = urlparse(database_url.replace("postgresql+psycopg2://", "postgresql://"))
     db = (p.path or "").lstrip("/")
     if not db:
-        print(f"[Restore] DATABASE_URL 缺数据库名: {database_url}", file=sys.stderr)
+        print("[Restore] DATABASE_URL 缺数据库名", file=sys.stderr)
         return False
 
     env = os.environ.copy()
@@ -195,49 +199,67 @@ def restore_postgres(database_url: str, dump_file: Path) -> bool:
 
 
 def restore_sqlite(database_url: str, dump_file: Path) -> bool:
-    """SQLite 恢复：替换源文件（如果是 .gz 先 gunzip）."""
-    if "://" in database_url:
-        dst_path = database_url.split("://", 1)[1].lstrip("/")
-    else:
-        dst_path = database_url
-    dst = Path(dst_path)
+    """Offline restore: validate staged bytes, preserve current DB, atomic replace.
 
-    if not dump_file.exists():
-        print(f"[Restore] dump file not found: {dump_file}", file=sys.stderr)
-        return False
-
-    # 先备份当前 DB 作应急回退（如果存在）
-    if dst.exists():
-        bak = dst.with_suffix(dst.suffix + ".before-restore")
-        try:
-            shutil.copy2(dst, bak)
-            print(f"[Restore] saved current DB to {bak} (keep until verified)")
-        except OSError as e:
-            print(f"[Restore] could not back up current DB: {e}", file=sys.stderr)
-            return False
-
-    # gunzip if needed
-    if dump_file.suffix == ".gz":
-        tmp = dst.with_suffix(dst.suffix + ".restoring")
-        with gzip.open(dump_file, "rb") as fi, open(tmp, "wb") as fo:
-            shutil.copyfileobj(fi, fo)
-        shutil.move(str(tmp), str(dst))
-    else:
-        shutil.copy2(dump_file, dst)
-
-    # 完整性自检
+    All database users MUST be stopped first. Locks/sidecar checks are additional
+    safeguards, not a portable guarantee against concurrent processes reopening it.
+    """
     try:
         import sqlite3
-        conn = sqlite3.connect(str(dst))
-        try:
-            row = conn.execute("PRAGMA integrity_check").fetchone()
-            if not row or row[0] != "ok":
-                print(f"[Restore] integrity_check failed: {row}", file=sys.stderr)
-                return False
-        finally:
-            conn.close()
+
+        dst = sqlite_path(database_url).absolute()
+        if dst.is_symlink() or not dst.parent.is_dir():
+            raise ValueError("Restore target must have an existing parent and must not be a symlink")
+        dump_file = Path(dump_file)
+        if not dump_file.is_file() or dump_file.resolve() == dst.resolve():
+            raise ValueError("Restore requires a readable backup file distinct from the target")
+        require_offline(dst)
+        if dump_file.suffix != ".gz":
+            require_offline(dump_file)
+
+        # Stage on the target filesystem so os.replace is atomic. A bad gzip or
+        # database is rejected before touching either the target or its fallback.
+        with tempfile.TemporaryDirectory(prefix=".sqlite-restore-", dir=dst.parent) as staging:
+            staged = Path(staging) / "restored.db"
+            opener = gzip.open if dump_file.suffix == ".gz" else open
+            with opener(dump_file, "rb") as fi, staged.open("wb") as fo:
+                shutil.copyfileobj(fi, fo)
+                fo.flush()
+                os.fsync(fo.fileno())
+            check_integrity(staged)
+            require_offline(dst)
+            if dst.exists():
+                # Detect active rollback-mode transactions. Close before replace
+                # for Windows; the stop-all-users precondition covers this gap.
+                conn = sqlite3.connect(dst.as_uri() + "?mode=rw", uri=True, timeout=0)
+                try:
+                    conn.execute("BEGIN EXCLUSIVE")
+                    bak = dst.with_suffix(dst.suffix + ".before-restore")
+                    if bak.exists():
+                        bak = bak.with_name(bak.name + "." + uuid4().hex)
+                    created = False
+                    try:
+                        fd = os.open(bak, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                        created = True
+                        with os.fdopen(fd, "wb") as fo, dst.open("rb") as fi:
+                            shutil.copyfileobj(fi, fo)
+                            fo.flush()
+                            os.fsync(fo.fileno())
+                    except Exception:
+                        # Keep earlier fallback copies; remove only our partial one.
+                        if created:
+                            bak.unlink(missing_ok=True)
+                        raise
+                    # Preserve access permissions, including restrictive DB modes.
+                    shutil.copymode(dst, staged)
+                    print(f"[Restore] saved current DB to {bak} (keep until verified)")
+                finally:
+                    conn.close()
+                require_offline(dst)
+            # These are exactly the bytes that passed the full integrity_check.
+            os.replace(staged, dst)
     except Exception as e:
-        print(f"[Restore] integrity_check exception: {e}", file=sys.stderr)
+        print(f"[Restore] SQLite restore failed: {e}", file=sys.stderr)
         return False
 
     return True
@@ -320,7 +342,7 @@ def main() -> int:
     # 用户确认
     plan_lines = ["即将恢复："]
     if db_file:
-        plan_lines.append(f"  DB ({db_url[:50]}...) ← {db_file}")
+        plan_lines.append(f"  DB (target configured by DATABASE_URL) ← {db_file}")
     if uploads_file:
         plan_lines.append(f"  uploads ({uploads_dir}) ← {uploads_file}")
     plan_lines.append("\n⚠️  这会覆盖当前数据。请确保：")
@@ -338,7 +360,7 @@ def main() -> int:
         elif db_url.startswith("sqlite"):
             r = restore_sqlite(db_url, db_file)
         else:
-            print(f"[Restore] unknown DATABASE_URL scheme: {db_url[:30]}", file=sys.stderr)
+            print("[Restore] unknown DATABASE_URL scheme", file=sys.stderr)
             r = False
         ok = ok and r
         print(f"[Restore] DB {'OK' if r else 'FAIL'}")

@@ -16,6 +16,7 @@ import sqlite3
 import sys
 import tarfile
 import time
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,7 @@ sys.path.insert(0, str(_REPO_ROOT / "infra" / "backup"))
 import backup as backup_mod  # noqa: E402
 import restore as restore_mod  # noqa: E402
 import verify as verify_mod  # noqa: E402
+import sqlite_support  # noqa: E402
 
 
 @pytest.fixture
@@ -198,6 +200,191 @@ def test_restore_sqlite_keeps_before_restore_copy(tmp_workspace):
 
     bak = tmp_workspace["db"].with_suffix(tmp_workspace["db"].suffix + ".before-restore")
     assert bak.exists(), "应急回退副本应保留"
+    with closing(sqlite3.connect(bak)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 201
+
+
+@pytest.mark.parametrize("driver", ["sqlite", "sqlite+pysqlite"])
+def test_sqlite_paths_preserve_native_absolute_and_relative(tmp_path, monkeypatch, driver):
+    monkeypatch.chdir(tmp_path)
+    assert sqlite_support.sqlite_path(f"{driver}:///./dev.db") == Path("./dev.db")
+    assert sqlite_support.sqlite_path(f"{driver}:///{tmp_path.as_posix()}/dev.db") == tmp_path / "dev.db"
+    # tmp_path is rooted at / on Linux and at the actual temporary drive on Windows.
+    assert sqlite_support.sqlite_path(f"{driver}:///{tmp_path.as_posix()}/dev.db").is_absolute()
+
+
+@pytest.mark.parametrize("url", [
+    "sqlite://", "sqlite:///:memory:", "sqlite:///", "sqlite:/bad.db",
+    "sqlite://host/db", "sqlite:///file:dev.db?uri=true",
+    "sqlite:///file:memory?mode=memory&cache=shared&uri=true",
+    "sqlite:///file:dev.db", "sqlite:///dev.db?mode=ro",
+    "sqlite+unknown:///dev.db", "postgresql://user:example@host/db",
+])
+def test_sqlite_paths_reject_unsupported_urls(url):
+    with pytest.raises(ValueError):
+        sqlite_support.sqlite_path(url)
+
+
+def test_sqlite_foreign_or_ambiguous_absolute_paths():
+    if os.name == "nt":
+        invalid = "sqlite:////tmp/dev.db"
+    else:
+        # Synthetic Windows drive syntax only: never access this path.
+        invalid = "sqlite:///C:/dev.db"
+    with pytest.raises(ValueError):
+        sqlite_support.sqlite_path(invalid)
+    with pytest.raises(ValueError):
+        sqlite_support.sqlite_path("sqlite:///C:dev.db")
+
+
+def test_backup_missing_file_does_not_create_database(tmp_path):
+    missing = tmp_path / "missing.db"
+    result = backup_mod.backup_sqlite(f"sqlite:///{missing.as_posix()}", tmp_path, "daily")
+    assert not result.ok
+    assert not missing.exists()
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("compressed", [False, True])
+@pytest.mark.parametrize("relative", [False, True])
+def test_backup_restore_roundtrip(tmp_workspace, monkeypatch, compressed, relative):
+    root, src = tmp_workspace["root"], tmp_workspace["db"]
+    monkeypatch.chdir(root)
+    url = "sqlite+pysqlite:///./source.db" if relative else tmp_workspace["db_url"]
+    result = backup_mod.backup_sqlite(url, tmp_workspace["backups"], "daily")
+    assert result.ok, result.msg
+    with gzip.open(result.path, "rb") as stream:
+        snapshot = root / "snapshot.db"
+        snapshot.write_bytes(stream.read())
+    with closing(sqlite3.connect(snapshot)) as conn:
+        expected = conn.execute("SELECT * FROM t ORDER BY id").fetchall()
+        assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+    with closing(sqlite3.connect(src)) as conn:
+        conn.execute("DELETE FROM t")
+        conn.commit()
+    assert restore_mod.restore_sqlite(url, result.path if compressed else snapshot)
+    with closing(sqlite3.connect(src)) as conn:
+        assert conn.execute("SELECT * FROM t ORDER BY id").fetchall() == expected
+        assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+    # An absolute URL must not create a stripped-root path under cwd.
+    assert sorted(p.name for p in root.iterdir()) == [
+        "backups", "snapshot.db", "source.db", "source.db.before-restore", "uploads",
+    ]
+
+
+@pytest.mark.parametrize("kind", ["missing", "bad-gzip", "truncated-gzip", "not-sqlite", "corrupt-db"])
+def test_restore_rejects_corruption_without_touching_target(tmp_workspace, kind):
+    src = tmp_workspace["db"]
+    original = src.read_bytes()
+    dump = tmp_workspace["backups"] / "broken.db"
+    if kind == "bad-gzip":
+        dump = dump.with_suffix(".gz")
+        dump.write_bytes(b"not gzip")
+    elif kind == "truncated-gzip":
+        dump = dump.with_suffix(".gz")
+        dump.write_bytes(gzip.compress(original)[:-8])
+    elif kind == "not-sqlite":
+        dump.write_bytes(b"not a database")
+    elif kind == "corrupt-db":
+        # Valid magic, damaged first B-tree page: integrity_check must run.
+        damaged = bytearray(original)
+        damaged[100] = 255
+        dump.write_bytes(damaged)
+    assert not restore_mod.restore_sqlite(tmp_workspace["db_url"], dump)
+    assert src.read_bytes() == original
+    assert not list(src.parent.glob(".sqlite-restore-*"))
+    assert not src.with_suffix(".db.before-restore").exists()
+
+
+@pytest.mark.parametrize("failure", ["fallback", "replace"])
+def test_restore_io_failure_preserves_original(tmp_workspace, monkeypatch, failure):
+    src = tmp_workspace["db"]
+    dump = tmp_workspace["backups"] / "snapshot.db"
+    dump.write_bytes(src.read_bytes())
+    with closing(sqlite3.connect(src)) as conn:
+        conn.execute("DELETE FROM t")
+        conn.commit()
+    original = src.read_bytes()
+    if failure == "fallback":
+        real_open = restore_mod.os.open
+        def fail_fallback(path, flags, *args, **kwargs):
+            if str(path).endswith(".before-restore"):
+                raise PermissionError("test fallback denied")
+            return real_open(path, flags, *args, **kwargs)
+        monkeypatch.setattr(restore_mod.os, "open", fail_fallback)
+    else:
+        def fail_replace(*args):
+            raise PermissionError("test replace denied")
+        monkeypatch.setattr(restore_mod.os, "replace", fail_replace)
+    assert not restore_mod.restore_sqlite(tmp_workspace["db_url"], dump)
+    assert src.read_bytes() == original
+    assert not list(src.parent.glob(".sqlite-restore-*"))
+    if failure == "replace":
+        assert src.with_suffix(".db.before-restore").read_bytes() == original
+
+
+def test_restore_preserves_earlier_fallback(tmp_workspace):
+    src = tmp_workspace["db"]
+    dump = tmp_workspace["backups"] / "snapshot.db"
+    dump.write_bytes(src.read_bytes())
+    earlier = src.with_suffix(".db.before-restore")
+    earlier.write_bytes(b"earlier fallback must survive")
+    assert restore_mod.restore_sqlite(tmp_workspace["db_url"], dump)
+    assert earlier.read_bytes() == b"earlier fallback must survive"
+    copies = list(src.parent.glob("source.db.before-restore.*"))
+    assert len(copies) == 1
+    assert copies[0].read_bytes() == src.read_bytes()
+
+
+def test_online_wal_backup_and_offline_restore_requirement(tmp_workspace):
+    src = tmp_workspace["db"]
+    conn = sqlite3.connect(src)
+    try:
+        assert conn.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+        conn.execute("INSERT INTO t (name) VALUES ('committed-in-wal')")
+        conn.commit()
+        result = backup_mod.backup_sqlite(tmp_workspace["db_url"], tmp_workspace["backups"], "daily")
+        assert result.ok, result.msg
+        assert not restore_mod.restore_sqlite(tmp_workspace["db_url"], result.path)
+        assert conn.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 201
+    finally:
+        conn.close()
+    assert restore_mod.restore_sqlite(tmp_workspace["db_url"], result.path)
+    with closing(sqlite3.connect(src)) as conn:
+        assert conn.execute("SELECT name FROM t WHERE id=201").fetchone()[0] == "committed-in-wal"
+        assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+
+
+def test_restore_refuses_active_rollback_transaction(tmp_workspace):
+    src = tmp_workspace["db"]
+    dump = tmp_workspace["backups"] / "snapshot.db"
+    dump.write_bytes(src.read_bytes())
+    original = src.read_bytes()
+    conn = sqlite3.connect(src)
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        assert not restore_mod.restore_sqlite(tmp_workspace["db_url"], dump)
+        assert src.read_bytes() == original
+    finally:
+        conn.close()
+
+
+def test_backup_compression_failure_cleans_staging(tmp_workspace, monkeypatch):
+    def fail_compression(*args, **kwargs):
+        raise OSError("test compression failure")
+    monkeypatch.setattr(gzip, "open", fail_compression)
+    result = backup_mod.backup_sqlite(tmp_workspace["db_url"], tmp_workspace["backups"], "daily")
+    assert not result.ok
+    assert list(tmp_workspace["backups"].iterdir()) == []
+
+
+def test_invalid_url_errors_do_not_echo_credentials(tmp_path, capsys):
+    url = "sqlite://example-user:example-password@host/db"
+    result = backup_mod.backup_sqlite(url, tmp_path, "daily")
+    assert not result.ok
+    assert "example-password" not in result.msg
+    assert not restore_mod.restore_sqlite(url, tmp_path / "missing.db")
+    assert "example-password" not in capsys.readouterr().err
 
 
 # ── verify.py ────────────────────────────────────────────────────

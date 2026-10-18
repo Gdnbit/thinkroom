@@ -22,7 +22,7 @@ powershell -ExecutionPolicy Bypass -File infra\backup\install-windows-task.ps1 -
 
 任务会注册到 Windows 计划任务程序，每天 02:00 自动跑 `backup.py --type daily`：
 
-- 备份 `dev.db` 用 SQLite 在线 `.backup` 命令（不阻塞写）
+- 备份 `dev.db` 用 SQLite 在线 backup API 获取一致快照（可能短暂获取读锁）
 - 备份 `apps/backend/uploads/` 整个目录（tar.gz）
 - 输出到项目根的 `./backups/` 目录
 - 自动按 `daily=7 / weekly=4 / monthly=12` 保留策略清理过期文件
@@ -82,7 +82,7 @@ python infra/backup/backup.py --quiet
 
 支持的目标：
 
-- **SQLite**：在线 `.backup` 命令，不阻塞写
+- **SQLite**：在线 backup API，一致快照后再 gzip 压缩
 - **Postgres**：`pg_dump --format=custom`（可 pg_restore 增量恢复）
 - **uploads/**：tar.gz 打包
 
@@ -100,28 +100,42 @@ python infra/backup/backup.py --quiet
 
 ## 2. 恢复（restore）
 
+**必须先停止后端、worker 和其他所有数据库使用者。此脚本不支持在线覆盖恢复。**
+WAL 数据库应在停止写入后完成 checkpoint 并关闭连接；存在 `-wal`、`-shm` 或
+`-journal` 时脚本拒绝覆盖。不要直接删除这些文件，它们可能包含尚未合入主文件的数据。
+
+安装 backend requirements 后使用同一 Python 环境运行脚本（URL 解析使用 SQLAlchemy）。
+`sqlite:///./dev.db` 相对于当前工作目录；`sqlite:////tmp/dev.db` 是 POSIX 绝对路径；
+Windows 使用 `sqlite:///C:/path/to/dev.db`（替换为本机实际路径）。也支持
+`sqlite+pysqlite:///...`。内存库、URI/query 参数、UNC 和非本机平台的绝对路径会被拒绝。
+
 ```bash
 # 从最近一份 daily 恢复
-python infra/backup/restore.py --latest daily
+python infra/backup/restore.py --auto-latest --type daily --skip-uploads
 
 # 从指定文件恢复
-python infra/backup/restore.py --file backups/daily/db_20260101_020001.db.gz
+python infra/backup/restore.py --db-file backups/daily/example.db.gz --skip-uploads
 
-# 校验某份备份是否完整（不实际恢复）
-python infra/backup/verify.py --file backups/daily/db_20260101_020001.db.gz
+# 检查 daily 备份集合（不实际恢复）
+python infra/backup/verify.py --types daily
 ```
 
-恢复前 `restore.py` 会：
+`restore.py` 会：
 
-1. 把当前 db 备份到 `backups/_pre_restore_<timestamp>.db`（双保险）
-2. 校验目标文件 magic bytes（不让损坏文件覆盖好数据）
-3. 询问确认（除非加 `--yes`）
+1. 询问确认（自动化可使用 `RESTORE_CONFIRM=yes`，仍须先停止所有数据库使用者）。
+2. 在目标目录暂存 `.db` 或解压 `.db.gz`，验证 magic 和完整 `PRAGMA integrity_check`。
+3. 将当前数据库保留为 `<database>.before-restore`；已有副本则使用唯一后缀保留新副本。
+   无法创建保护副本时停止恢复。
+4. 在同一文件系统原子替换目标，清理暂存文件。损坏输入或替换失败不会覆盖原库。
+
+恢复后先检查数据及 `PRAGMA integrity_check`，验证成功后再启动应用。保留保护副本直至
+人工验收完成；文件系统故障和断电后的持久性仍取决于存储系统，需要独立异地备份。
 
 ---
 
 ## 3. 测试覆盖
 
-`apps/backend/tests/test_backup_scripts.py`（14 条）：完整 round-trip 测试 backup → restore → verify，每个 PR 都跑。
+`apps/backend/tests/test_backup_scripts.py`：真实临时数据库 round-trip、跨平台路径、WAL 在线备份、离线恢复要求、损坏输入和 I/O 失败保护，每个 PR 都跑。
 
 ---
 

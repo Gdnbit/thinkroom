@@ -185,6 +185,12 @@ Get-ChildItem backups\*.zip | Where-Object { $_.LastWriteTime -lt (Get-Date).Add
 
 ### 2.2 恢复
 
+优先使用 `infra/backup/restore.py --db-file <backup.db.gz> --skip-uploads`；支持 `.db`
+和 `.db.gz`，完整步骤见 [备份脚本说明](../../infra/backup/README.md#2-恢复restore)。
+恢复前必须停止所有数据库使用者并完成 WAL checkpoint/关闭连接，不能直接删除侧文件。
+脚本会先在目标目录验证数据库完整性，保留 `.before-restore` 副本后再原子替换。
+以下为历史 ZIP 备份的手动流程，不具备脚本的暂存与完整性保护，优先在独立目录恢复验证。
+
 ```powershell
 # 1. 停后端
 docker compose -f docker-compose.prod.yml stop backend

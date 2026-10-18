@@ -2,7 +2,7 @@
 
 支持的目标：
 - **Postgres**：用 `pg_dump --format=custom`（生产推荐，可 pg_restore 增量恢复）
-- **SQLite**：用在线 `.backup` 命令（不阻塞写）
+- **SQLite**：用在线 backup API 获取一致快照（可能短暂获取读锁）
 - **uploads/ 目录**：tar.gz 打包
 
 保留策略（默认）：
@@ -57,9 +57,13 @@ import subprocess
 import sys
 import tarfile
 import time
+import tempfile
+from uuid import uuid4
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from sqlite_support import connect_readonly, sqlite_path
 
 
 # ── 配置（环境变量优先；脚本默认值次之） ───────────────────────────
@@ -126,7 +130,7 @@ def backup_postgres(database_url: str, target_dir: Path, prefix: str) -> BackupR
     p = urlparse(database_url.replace("postgresql+psycopg2://", "postgresql://"))
     db = (p.path or "").lstrip("/")
     if not db:
-        return BackupResult("postgres", None, 0, False, f"DATABASE_URL 缺数据库名: {database_url}")
+        return BackupResult("postgres", None, 0, False, "DATABASE_URL 缺数据库名")
 
     env = os.environ.copy()
     if p.password:
@@ -221,42 +225,34 @@ def backup_postgres(database_url: str, target_dir: Path, prefix: str) -> BackupR
 
 
 def backup_sqlite(database_url: str, target_dir: Path, prefix: str) -> BackupResult:
-    """SQLite 在线 `.backup`（不阻塞写）."""
-    # url 形如 sqlite:///./dev.db → 取 path 部分
-    if "://" in database_url:
-        src_path = database_url.split("://", 1)[1].lstrip("/")
-    else:
-        src_path = database_url
-    src = Path(src_path)
-    if not src.exists():
-        return BackupResult("sqlite", None, 0, False, f"SQLite 文件不存在: {src}")
-
-    name = f"{prefix}-sqlite-{src.stem}-{_timestamp()}.db"
-    out = target_dir / name
-
+    """SQLite online backup API snapshot, compressed only after completion."""
     try:
+        import gzip
         import sqlite3
-        # 用 sqlite3 的 backup API（在线热备）
-        srcdb = sqlite3.connect(str(src))
-        try:
-            dstdb = sqlite3.connect(str(out))
+
+        src = sqlite_path(database_url)
+        if not src.is_file():
+            raise ValueError(f"SQLite 文件不存在: {src}")
+        name = f"{prefix}-sqlite-{src.stem}-{_timestamp()}-{uuid4().hex[:8]}.db.gz"
+        out_gz = target_dir / name
+        with tempfile.TemporaryDirectory(prefix=".sqlite-backup-", dir=target_dir) as staging:
+            snapshot = Path(staging) / "snapshot.db"
+            srcdb = connect_readonly(src)
             try:
-                srcdb.backup(dstdb)
+                dstdb = sqlite3.connect(str(snapshot))
+                try:
+                    srcdb.backup(dstdb)
+                finally:
+                    dstdb.close()
             finally:
-                dstdb.close()
-        finally:
-            srcdb.close()
+                srcdb.close()
+            compressed = Path(staging) / "snapshot.db.gz"
+            with snapshot.open("rb") as fi, gzip.open(compressed, "wb", compresslevel=6) as fo:
+                shutil.copyfileobj(fi, fo)
+            os.replace(compressed, out_gz)
+        return BackupResult("sqlite", out_gz, out_gz.stat().st_size, True)
     except Exception as e:
         return BackupResult("sqlite", None, 0, False, f"sqlite3.backup 失败: {e}")
-
-    # gzip 压缩
-    import gzip
-    out_gz = out.with_suffix(out.suffix + ".gz")
-    with open(out, "rb") as fi, gzip.open(out_gz, "wb", compresslevel=6) as fo:
-        shutil.copyfileobj(fi, fo)
-    out.unlink()
-
-    return BackupResult("sqlite", out_gz, out_gz.stat().st_size, True)
 
 
 # ── uploads/ 目录备份 ────────────────────────────────────────────
@@ -336,7 +332,7 @@ def main() -> int:
         elif db_url.startswith("sqlite"):
             r = backup_sqlite(db_url, target, args.type)
         else:
-            r = BackupResult("db", None, 0, False, f"未知 DATABASE_URL scheme: {db_url[:30]}...")
+            r = BackupResult("db", None, 0, False, "未知 DATABASE_URL scheme")
         results.append(r)
 
     # 2. uploads
