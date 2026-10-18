@@ -8,7 +8,7 @@ This is a reproducible walkthrough, **not a recording, screenshot, or claimed li
 
 ## 1. 示例场景 / Scenario
 
-仓库的 [\`examples/demo-evidence.txt\`](../examples/demo-evidence.txt) 只包含一个完全虚构的社区图书馆案例：
+仓库的 [`examples/demo-evidence.txt`](../examples/demo-evidence.txt) 只包含一个完全虚构的社区图书馆案例：
 
 | 已知信息 / Known | 未知信息 / Unknown |
 | --- | --- |
@@ -26,10 +26,10 @@ This is a reproducible walkthrough, **not a recording, screenshot, or claimed li
 
 环境要求、Windows/macOS/Linux 完整命令见[首页 Quick Start](../README.md#现在就试一试本地-mock-模式)。
 
-1. 在仓库根目录启动隔离后端：\`python scripts/start_backend.py --mock\`（使用你已创建的 Python 3.11 虚拟环境）。
-2. 在另一个终端进入 \`apps/frontend\`，执行 \`npm ci\` 与 \`npm run dev -- --host 127.0.0.1\`。
+1. 在仓库根目录启动隔离后端：`python scripts/start_backend.py --mock`（使用你已创建的 Python 3.11 虚拟环境）。
+2. 在另一个终端进入 `apps/frontend`，执行 `npm ci` 与 `npm run dev -- --host 127.0.0.1`。
 3. 打开 http://127.0.0.1:5173/chat，进入问答页面。
-4. 上传 \`examples/demo-evidence.txt\`，等待入库处理完成；如页面提供资料范围选择，请将问题限定到这份资料。
+4. 上传 `examples/demo-evidence.txt`，等待入库处理完成；如页面提供资料范围选择，请将问题限定到这份资料。
 5. 尝试下面的问题，观察上传、问答、引用、质量提示以及当前 UI 支持的其他模式。
 
 **Mock 提醒：** Mock 只用于验证技术链路，可能不会产生贴合此案例的自然语言推理结论；不要把占位回答当成产品演示成果。要验证真实模型行为，需要由用户自行配置有效提供方与密钥，可能产生费用并向提供方传输所选资料。

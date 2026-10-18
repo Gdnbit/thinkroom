@@ -28,7 +28,7 @@ ThinkRoom 的工作方向，是把**来源证据、不同分析视角、彼此�
 
 ## 从资料到判断，形成一条可追溯的链路
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
     A["文档 / 笔记 / 资料"] --> B["解析 · 观点卡 · 来源画像"]
     B --> C["指定资料范围 · 检索证据"]
@@ -38,7 +38,7 @@ flowchart LR
     E --> G["引用 · 质量提示 · 综合判断"]
     F --> G
     G --> H["保存判断 · 记录结果 · 复盘"]
-\`\`\`
+```
 
 和仅展示「问答结果」相比，ThinkRoom 特别关注三个问题：
 
@@ -69,39 +69,39 @@ flowchart LR
 <details>
 <summary><strong>Windows · PowerShell</strong></summary>
 
-\`\`\`powershell
+```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r apps/backend/requirements-dev.txt
 .\.venv\Scripts\python.exe scripts/start_backend.py --mock
-\`\`\`
+```
 
 </details>
 
 <details>
 <summary><strong>macOS / Linux</strong></summary>
 
-\`\`\`bash
+```bash
 python3.11 -m venv .venv
 .venv/bin/python -m pip install -r apps/backend/requirements-dev.txt
 .venv/bin/python scripts/start_backend.py --mock
-\`\`\`
+```
 
 </details>
 
 **另开一个终端启动前端：**
 
-\`\`\`bash
+```bash
 cd apps/frontend
 npm ci
 npm run dev -- --host 127.0.0.1
-\`\`\`
+```
 
-打开 **http://127.0.0.1:5173/chat**，上传 \`examples/demo-evidence.txt\`，以「继续延长开放时间的依据是什么，还有哪些未知条件？」为例提问。也可以通过侧边栏进入**资料**、**审议记录**和**复盘**页面。
+打开 **http://127.0.0.1:5173/chat**，上传 `examples/demo-evidence.txt`，以「继续延长开放时间的依据是什么，还有哪些未知条件？」为例提问。也可以通过侧边栏进入**资料**、**审议记录**和**复盘**页面。
 
 - 后端健康检查：http://127.0.0.1:8000/health
-- 默认使用隔离的 \`.runtime/data/public/local.db\`，停止进程可按 \`Ctrl+C\`。
+- 默认使用隔离的 `.runtime/data/public/local.db`，停止进程可按 `Ctrl+C`。
 - **Mock 只用于验证基础链路，不代表真实模型的推理质量，也不保证所有可选数据源完全离线。**
-- 真实模型需要通过安全的进程环境配置 \`OPENROUTER_API_KEY\` 并移除 \`--mock\`；调用可能收费，也可能将选定资料发送给模型服务商。详见[演示与模式差异](docs/DEMO.md)。
+- 真实模型需要通过安全的进程环境配置 `OPENROUTER_API_KEY` 并移除 `--mock`；调用可能收费，也可能将选定资料发送给模型服务商。详见[演示与模式差异](docs/DEMO.md)。
 
 ## 技术实现
 
@@ -114,7 +114,7 @@ npm run dev -- --host 127.0.0.1
 | 模型 | OpenRouter 与按角色配置的模型；可使用 Mock 验证基础流程 |
 | 部署选项 | Redis、Celery、MinIO（**非**本地入门必需） |
 
-项目结构：\`apps/backend/\`、\`apps/frontend/\`、\`infra/\`、\`docs/\`、\`scripts/\`。详细的模块设计与运维说明可从[文档导航](docs/README.md)进入。
+项目结构：`apps/backend/`、`apps/frontend/`、`infra/`、`docs/`、`scripts/`。详细的模块设计与运维说明可从[文档导航](docs/README.md)进入。
 
 ## 当前边界与路线
 

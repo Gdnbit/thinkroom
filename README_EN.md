@@ -24,7 +24,7 @@ This is a [synthetic fixture](examples/demo-evidence.txt), **not real customer d
 
 ## From sources to a reviewable decision
 
-\`\`\`mermaid
+```mermaid
 flowchart LR
     A["Documents / notes"] --> B["Parsing · claims · source profiles"]
     B --> C["Select sources · retrieve evidence"]
@@ -34,7 +34,7 @@ flowchart LR
     E --> G["Citations · quality checks · synthesis"]
     F --> G
     G --> H["Decision snapshot · outcome · replay"]
-\`\`\`
+```
 
 ThinkRoom focuses on three practical questions:
 
@@ -66,39 +66,39 @@ Start the isolated single-user workflow without real research data or a paid-mod
 <details>
 <summary><strong>Windows · PowerShell</strong></summary>
 
-\`\`\`powershell
+```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r apps/backend/requirements-dev.txt
 .\.venv\Scripts\python.exe scripts/start_backend.py --mock
-\`\`\`
+```
 
 </details>
 
 <details>
 <summary><strong>macOS / Linux</strong></summary>
 
-\`\`\`bash
+```bash
 python3.11 -m venv .venv
 .venv/bin/python -m pip install -r apps/backend/requirements-dev.txt
 .venv/bin/python scripts/start_backend.py --mock
-\`\`\`
+```
 
 </details>
 
 In a **second terminal**:
 
-\`\`\`bash
+```bash
 cd apps/frontend
 npm ci
 npm run dev -- --host 127.0.0.1
-\`\`\`
+```
 
-Open **http://127.0.0.1:5173/chat** and upload \`examples/demo-evidence.txt\`. Ask: “What supports continuing the evening-hours trial, and what remains unknown?” Explore **Knowledge**, **Deliberation** and **Review** through the app navigation.
+Open **http://127.0.0.1:5173/chat** and upload `examples/demo-evidence.txt`. Ask: “What supports continuing the evening-hours trial, and what remains unknown?” Explore **Knowledge**, **Deliberation** and **Review** through the app navigation.
 
 - Backend health: http://127.0.0.1:8000/health
-- Isolated default database: \`.runtime/data/public/local.db\`; use \`Ctrl+C\` to stop.
+- Isolated default database: `.runtime/data/public/local.db`; use `Ctrl+C` to stop.
 - **Mock mode checks basic plumbing, not the quality of live reasoning**, and not every optional data source is necessarily air-gapped.
-- For live models, inject \`OPENROUTER_API_KEY\` securely into the backend process environment and omit \`--mock\`. Live requests can incur charges and transmit selected material to the configured provider. [Demo and mode boundaries →](docs/DEMO.md)
+- For live models, inject `OPENROUTER_API_KEY` securely into the backend process environment and omit `--mock`. Live requests can incur charges and transmit selected material to the configured provider. [Demo and mode boundaries →](docs/DEMO.md)
 
 ## Architecture at a glance
 
