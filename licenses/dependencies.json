@@ -560,7 +560,7 @@
     {
       "name": "prometheus-fastapi-instrumentator",
       "version": "8.0.0",
-      "license_metadata": "OSI Approved"
+      "license_metadata": "ISC (reviewed installed LICENSE)"
     },
     {
       "name": "prometheus_client",

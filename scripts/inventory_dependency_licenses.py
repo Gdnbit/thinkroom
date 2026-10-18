@@ -17,6 +17,8 @@ def main():
             license_id = meta.get("License") or "UNSPECIFIED"
         if license_id == "UNSPECIFIED" and meta["Name"].lower() == "peewee":
             license_id = "MIT (reviewed installed LICENSE; upstream coleifer/peewee LICENSE)"
+        if license_id == "OSI Approved" and meta["Name"].lower() == "prometheus-fastapi-instrumentator":
+            license_id = "ISC (reviewed installed LICENSE)"
         python.append({"name": meta["Name"], "version": package.version, "license_metadata": license_id})
     lock = json.loads((ROOT / "apps/frontend/package-lock.json").read_text(encoding="utf-8"))
     npm = [{"package_path": name, "version": data.get("version"), "license_metadata": data.get("license", "UNSPECIFIED")}

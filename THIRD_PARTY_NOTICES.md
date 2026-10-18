@@ -1,4 +1,4 @@
-# Third-party notices
+# ThinkRoom third-party notices
 
 Original contributions use Apache-2.0. External libraries, fonts, test utilities
 and container images retain upstream licenses. This source snapshot does not
@@ -20,3 +20,16 @@ independent terms and are not relicensed by this project.
 
 `examples/` is original synthetic material. No right to redistribute private
 research documents is assumed or granted by the project license.
+
+The inventory also contains weak-copyleft dependencies (including frozendict,
+psycopg2, certifi and pathspec) and the CC-BY-4.0 caniuse-lite dataset. Their terms
+remain applicable; Apache-2.0 does not replace them. This release distributes
+project sources and lock files, not installed packages or container images.
+Future binary/container releases need their own bundled license/attribution and
+source/relinking compliance review where required.
+
+Lucide icons retain their ISC license. The CSS names system font families but
+does not bundle font files. The ThinkRoom SVG mark is project-owned. Synthetic
+fixture PDFs use ReportLab standard/CID font references rather than shipping
+private fonts or research pages. Development/production container base images
+and optional data-provider integrations are separately licensed.

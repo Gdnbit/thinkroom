@@ -1,63 +1,71 @@
-# Local source validation
+# ThinkRoom validation
 
-Prepared on 2026-10-18 (Asia/Shanghai). This source candidate has not been published.
+Updated on 2026-10-18 (Asia/Shanghai) for the owner-authorized first publication.
+The reviewed code baseline is `e1e4c9e` plus the ThinkRoom release changes.
+The local publication rerun completed before commit; subsequent edits update
+release records only. The original audit was local-only. The owner has now
+authorized commit, push, remote rename and Public visibility, but no GitHub Release
+or deployment. Live CI status is available in [GitHub Actions](https://github.com/Gdnbit/thinkroom/actions).
 
-| Check | Result |
-|---|---|
-| Fresh Python 3.11.15 installation from development lock; pip check | Passed |
-| Full offline backend regression | 1,383 passed; 39 online/Postgres tests deselected |
-| PDF/parser follow-up after fingerprint integration | 21 passed |
-| Frontend type-check, ESLint, production build | Passed |
-| Frontend unit-test files | 14 passed |
-| Node startup/E2E contracts | Six passed |
-| Privacy, packaging boundary and credential-forwarding unit tests | Eight passed |
-| Backend runtime lock advisory audit | Zero known advisory records; no skipped packages |
-| Backend development lock advisory audit | Zero known advisory records; no skipped packages |
-| npm lock advisory audit | Zero known vulnerabilities reported |
-| Fresh SQLite migration and portable Mock startup | Passed on loopback |
-| Synthetic upload → ingestion → selected-source chat | HTTP 200 at each step; Mock answer with citation |
-| Desktop/mobile page smoke | Chat, knowledge and review routes passed; no page errors or mobile horizontal overflow |
-| Reviewed source hashes/exclusion boundaries | Passed; manifest rechecked at packaging |
+## Current verification
 
-The PDF follow-up includes long/Chinese synthetic evaluation, hybrid OCR ordering,
-failed-page accounting and page-level segments. No original research document is
-required for these tests. Parser identity includes the PDFium implementation file.
+| Check | Status | Evidence / limitation |
+|---|---|---|
+| Full offline backend publication rerun | PASS | 1,390 passed; 39 online/PG cases deselected; 523.44 seconds |
+| SQLite fresh Alembic chain and index compatibility | PASS | Six tests; fresh upgrade, legacy columns/index, downgrade/re-upgrade and schema checks |
+| PostgreSQL + pgvector | PASS | Four integration tests against a fresh isolated container, including upgrade, alembic check and migration pipeline; version-column width asserted |
+| Production configuration guard | PASS | 19 tests including template credentials and repository/container integration paths |
+| Frontend install | PASS | npm ci from lock; Node.js 22.20.0 locally |
+| Frontend unit tests | PASS | 15 test files, including hostile HTML/entity payloads |
+| Frontend type checking, lint and production build | PASS | tsc included in build; ESLint passed |
+| Node startup/E2E script contracts | PASS | Six tests |
+| Privacy, source boundary and launcher tests | PASS | Ten unittest cases, including Git history with manifest and forced tracked ignored credentials |
+| Development Python lock audit | PASS | 182 packages, zero known vulnerabilities, no skipped packages |
+| npm dependency audit | PASS | Zero known vulnerabilities at all severities |
+| Installed dependency consistency | PASS | pip check; Python inventory versions and all 494 npm inventory entries match |
+| Mock local startup | PASS | Fresh isolated SQLite, health 200; API title ThinkRoom API |
+| Synthetic HTTP flow | PASS | Session, upload, synchronous ingestion and selected-source answer completed |
+| Browser brand check | PASS | ThinkRoom title, TR mark and sidebar visually checked in Edge |
+| Backend Docker build | PASS | Rebuilt after fixing shallow container path; non-root appuser |
+| Frontend Docker build | PASS | Explicit build-time devDependencies; final source rebuilt |
+| Container smoke | PASS | Backend health, frontend home and health all 200; frontend title ThinkRoom |
+| Unsafe production container startup | PASS | Exit nonzero with ProductionConfigError |
+| Production Compose configuration | PASS | Existing checker against placeholder template, isolated temporary workspace |
+| Source manifest / publication boundary | PASS | Rebuilt after all reviewed source/doc changes and rechecked |
+| Git history / secret candidates | PASS | Three reachable clean-source commits; no confirmed live secrets after triage |
+| GitHub Actions at local verification checkpoint | NOT VERIFIED | Local result only; use the linked live Actions for the subsequently pushed final SHA |
+| Real provider / paid model quality | NOT VERIFIED | No paid model requests made |
+| Full production deployment, TLS, Redis/Celery/MinIO integration | NOT VERIFIED | Local container smoke is not production readiness |
+| Container OS/base-image CVE scan and full accessibility review | NOT VERIFIED | No certification claimed |
 
-Source inspection found no retained private username, previous GitHub owner or
-original project-location prefix. Original screenshots and historical reports are
-excluded. The archive scan returned 21 Gitleaks candidates: five template/workflow
-label findings and 16 source-file SHA-256 entries in the manifest. All were reviewed
-as non-credential values; the manifest entries are recomputed file hashes.
-custom-pattern candidates included synthetic safety tests, scanner regex syntax
-and third-party/license metadata. No live credential disclosure was confirmed.
-These tools cannot prove absence of every possible encoded secret or private fact.
+## Interpreting the backend result
 
-Dependency checks were run against the exact lock files during preparation.
-Results age; rerun them before publishing. Apache-2.0 applies to original project
-contributions. Installed dependencies/binaries are not included in the source ZIP;
-retain upstream notices when distributing built images or binaries.
+The earlier audit reported 1,383 passes and one stale-manifest failure, which
+was resolved by targeted rerun. The final publication run now completes the
+entire offline suite: **1,390 passed, 39 deselected**. This includes the production
+placeholder guard, integration-path regression and SQLite migration fixes.
+PostgreSQL/pgvector was separately rerun: **four passed**, including revision
+width and drift checks. Frontend tests, lint/build, ten audit unittests, six Node
+contracts, dependency audits and Docker build/smoke were also rerun successfully.
+One upstream Starlette/httpx deprecation warning remains. No paid/live-model
+semantic evaluation was performed. The source manifest is refreshed after the
+release-record updates and verified again before publication.
 
-The full offline suite reports one upstream Starlette/httpx deprecation warning.
-This does not fail the suite. Production Docker/Postgres deployment, paid/live-model
-quality and a full accessibility review were not performed. Mock responses only
-validate plumbing and evidence surfaces, not semantic model quality or investment
-outcomes. Modern browser requirements follow Tailwind 4.
+## Audit interpretation
 
-The archive contains only manifest-listed source files plus the manifest itself.
-Virtual environments, node_modules, databases, uploads, logs, caches and inherited
-Git history are excluded. The SHA-256 sidecar identifies the reviewed ZIP.
-Repository creation and visibility changes require a separate owner instruction.
+Gitleaks history candidates were reviewed: source-manifest hashes and five
+template/workflow-label findings, not confirmed live credentials. Additional
+pattern, encoded-string, domain/path and binary reviews are described in
+[the release audit](docs/OPEN_SOURCE_RELEASE_AUDIT.md). Automated detection cannot
+prove the absence of all unknown private facts.
 
-## Sicheng naming update (2026-10-18)
+All three tracked PDF fixtures and both tall PNG fixtures were reproduced
+byte-for-byte from the project-owned generator. The remaining vector mark was
+inspected. The two old-brand empty-state screenshots were inspected and removed;
+they did not contain private source content.
 
-The owner approved the name 私承 Sicheng, its subtitle and initial synchronization
-to a new private `Gdnbit/sicheng` repository. README introductions, the browser
-title and sidebar branding were updated. Frontend production build (including
-TypeScript), lint and all 14 unit test files passed again after these changes.
-No backend behavior changed. The earlier full backend and privacy validation
-results above apply to the prepared source baseline. Public visibility still
-requires a separate owner instruction.
-
-The first GitHub source-integrity check exposed automatic LF normalization of
-three legacy CRLF frontend files. Explicit `-text` attributes preserve their
-reviewed bytes; no file encoding or newline migration was performed.
+Apache-2.0 covers original contributions, not third-party libraries. The source
+release does not bundle installed dependencies, runtime data, original private
+research, local audit inventories or container images. Binary distribution needs
+its own upstream notice/compliance review. Earlier candidate ZIPs and earlier
+commit results do not validate this modified working tree.
