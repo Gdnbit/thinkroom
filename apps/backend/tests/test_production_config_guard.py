@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+from pathlib import PurePosixPath
 
 import pytest
 
 from app.config import ProductionConfigError, Settings, assert_production_safe, production_config_errors
+from app.config import _default_mediacrawler_root
+
+
+def test_optional_integration_default_supports_repository_and_container_layouts():
+    assert _default_mediacrawler_root(PurePosixPath("/repo/apps/backend/app/config.py")) == "/repo/integrations/MediaCrawler"
+    assert _default_mediacrawler_root(PurePosixPath("/app/app/config.py")) == "/app/integrations/MediaCrawler"
 
 
 def test_production_guard_ignores_development_defaults():
@@ -55,6 +62,17 @@ def test_production_guard_accepts_explicit_safe_configuration():
 
     assert production_config_errors(cfg) == []
     assert_production_safe(cfg)
+
+
+@pytest.mark.parametrize("name", ["APP_API_KEY", "APP_SECRET_KEY", "OPENROUTER_API_KEY", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"])
+def test_production_guard_rejects_nonempty_example_credentials(name):
+    placeholder = "<REQUIRED_STRONG_RANDOM_SECRET_AT_LEAST_32_CHARS>"
+    cfg = Settings(APP_ENV="production", **{name: placeholder})
+    errors = production_config_errors(cfg)
+    assert f"{name} must not use a template placeholder in production" in errors
+    assert placeholder not in str(errors)
+    with pytest.raises(ProductionConfigError):
+        assert_production_safe(cfg)
 
 
 def test_production_guard_rejects_process_local_ingestion_dispatcher():

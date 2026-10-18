@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("public_check", ROOT / "scripts/check_public_source.py")
@@ -14,6 +15,18 @@ SPEC.loader.exec_module(CHECK)
 
 
 class PublicSourceBoundaryTests(unittest.TestCase):
+    def test_force_tracked_ignored_credentials_are_not_hidden(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = self.make_source(root)
+            hashes = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files}
+            (root / 'PUBLIC_SOURCE_MANIFEST.json').write_text(json.dumps({'files': hashes}), encoding='utf-8')
+            (root / '.env').write_text('SYNTHETIC=example', encoding='utf-8')
+            subprocess.run(['git', 'init'], cwd=root, check=True, capture_output=True)
+            subprocess.run(['git', 'add', '-f', '.env'], cwd=root, check=True, capture_output=True)
+            result = CHECK.audit_public(root)
+            self.assertIn('unreviewed_tracked_file', {x['code'] for x in result['issues']})
+
     def make_source(self, root):
         files = {name: "synthetic\n" for name in ["README.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "THIRD_PARTY_NOTICES.md", "examples/demo-evidence.txt"]}
         files['apps/backend/requirements.txt'] = 'pypdfium2==5.10.1\n'

@@ -7,6 +7,13 @@ class ProductionConfigError(RuntimeError):
     """Raised when production starts with an unsafe default configuration."""
 
 
+def _default_mediacrawler_root(config_file=Path(__file__).resolve()) -> str:
+    """Support both apps/backend/app and the container's /app/app layout."""
+    backend_root = config_file.parent.parent
+    root = backend_root.parent.parent if backend_root.parent.name == "apps" else backend_root
+    return str(root / "integrations" / "MediaCrawler")
+
+
 class Settings(BaseSettings):
     # 数据库
     DATABASE_URL: str = "sqlite:///./dev.db"
@@ -348,7 +355,7 @@ class Settings(BaseSettings):
 
     # ── MediaCrawler（用于小红书 + 抖音）────────────────────────
     MEDIACRAWLER_API_URL: str = "http://localhost:8080"  # MediaCrawler WebUI API
-    MEDIACRAWLER_ROOT: str = str(Path(__file__).resolve().parents[3] / "integrations" / "MediaCrawler")
+    MEDIACRAWLER_ROOT: str = _default_mediacrawler_root()
 
     # 小红书
     XHS_COOKIE: str = ""
@@ -391,6 +398,14 @@ def production_config_errors(cfg: Settings = settings) -> list[str]:
         return []
 
     errors: list[str] = []
+    # Example templates must fail closed even when a placeholder is non-empty
+    # and happens to satisfy a length check. Never include its value in errors.
+    for name in ("APP_API_KEY", "APP_SECRET_KEY", "OPENROUTER_API_KEY", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"):
+        value = str(getattr(cfg, name, "") or "").strip()
+        if (value.startswith("<") and value.endswith(">")) or value.lower() in {
+            "your_key_here", "your_api_key", "change-me", "changeme", "example_password",
+        }:
+            errors.append(f"{name} must not use a template placeholder in production")
     if (cfg.DATABASE_URL or "").strip().lower().startswith("sqlite"):
         errors.append("DATABASE_URL must not use SQLite in production")
     if not (cfg.DEPLOYMENT_CONFIG_ID or "").strip():

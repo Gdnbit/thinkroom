@@ -1,10 +1,11 @@
 """Verify reviewed source hashes and exclusion boundaries without reading runtime data."""
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PRIVATE_PREFIXES = (".ai/", "handoff/", "docs/archive/", "docs/optimization/", "docs/validation/", "_pending_delete_review/")
+PRIVATE_PREFIXES = (".ai/", "handoff/", "docs/archive/", "docs/optimization/", "docs/validation/", "_pending_delete_review/", ".runtime/", ".runtime_logs/", ".runtime_test_dbs/", ".pids/", ".venv/", "secrets/", "keys/", "uploads/", "backups/", "logs/")
 
 
 def audit_public(root=ROOT):
@@ -35,6 +36,17 @@ def audit_public(root=ROOT):
         name = path.relative_to(root).as_posix()
         if name not in files:
             issues.append({"code": "unreviewed_source", "path": name})
+    # Ignored runtime/credential patterns must not hide files force-added to Git.
+    if (root / ".git").exists():
+        tracked = subprocess.run(
+            ["git", "ls-files", "-z"], cwd=root, capture_output=True, check=True,
+        ).stdout.split(b"\0")
+        for raw in tracked:
+            if not raw:
+                continue
+            name = raw.decode("utf-8")
+            if name != "PUBLIC_SOURCE_MANIFEST.json" and (root / name).exists() and name not in files:
+                issues.append({"code": "unreviewed_tracked_file", "path": name})
     requirements = (root / "apps/backend/requirements.txt").read_text(encoding="utf-8").lower()
     if "pymupdf==" in requirements:
         issues.append({"code": "removed_dependency_returned"})

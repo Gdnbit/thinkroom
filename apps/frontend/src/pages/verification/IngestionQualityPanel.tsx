@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import {
   BrainCircuit,
   CheckCircle2,
@@ -298,7 +299,7 @@ export default function IngestionQualityPanel() {
             <div
               className="whitespace-pre-wrap text-foreground/90"
               dangerouslySetInnerHTML={{
-                __html: (result.ai_evaluation as string)
+                __html: escapeHtml(result.ai_evaluation as string)
                   .replace(/^### (.+)$/gm, '<h3 class="text-sm font-semibold text-foreground mt-3 mb-1">$1</h3>')
                   .replace(/^## (.+)$/gm, '<h2 class="text-sm font-bold text-foreground mt-4 mb-1">$1</h2>')
                   .replace(/^# (.+)$/gm, '<h1 class="text-base font-bold text-foreground mt-4 mb-2">$1</h1>')

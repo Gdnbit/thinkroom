@@ -11,6 +11,8 @@ apps/frontend/src/pages/DataFlow.tsx -text
 apps/backend/app/skills/final_adjudication_skill.py whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 apps/backend/app/api/v1/outcomes.py whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 PRIVATE_SYNC.md whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+PUBLIC_SOURCE_MANIFEST.json whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+licenses/dependencies.json whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 
 # Historical recovery snapshots preserve their original bytes, including CRLF,
 # BOMs, trailing whitespace, and known mojibake. They are audit evidence, not source.

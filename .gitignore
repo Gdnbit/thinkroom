@@ -118,3 +118,17 @@ _history_archive/
 # Frontend test/runtime artifacts
 apps/frontend/test-results/
 apps/frontend/playwright-report/
+
+# Additional local-only credentials and generated state
+secrets/
+keys/
+cache/
+.cache/
+*.dump
+*.sql.gz
+*.p7b
+*.jks
+*.zip
+*.bak
+*.sqlite-journal
+*.sqlite3-journal

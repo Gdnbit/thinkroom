@@ -53,13 +53,20 @@ def audit(history: bool) -> dict:
     binary = []
     sensitive = []
     source_manifest = ROOT / "PUBLIC_SOURCE_MANIFEST.json"
-    if source_manifest.is_file():
+    has_git = (ROOT / ".git").exists()
+    if source_manifest.is_file() and not has_git:
         if history:
             raise ValueError("This public source snapshot has no inherited history")
         files = list(json.loads(source_manifest.read_text(encoding="utf-8"))["files"])
     else:
         files = [p.decode("utf-8") for p in git("ls-files", "-z").split(b"\0") if p]
+        if source_manifest.is_file():
+            files = sorted(set(files) | set(json.loads(source_manifest.read_text(encoding="utf-8"))["files"]))
+    deleted = []
     for path in files:
+        if not (ROOT / path).exists():
+            deleted.append(path)
+            continue
         data = (ROOT / path).read_bytes()
         if b"\0" in data:
             binary.append(path)
@@ -68,10 +75,11 @@ def audit(history: bool) -> dict:
         for rule, lines in scan(data).items():
             findings.append({"path": path, "rule": rule, "lines": lines})
     result = {
-        "head": "source-only" if source_manifest.is_file() else git("rev-parse", "HEAD").decode().strip(),
+        "head": "source-only" if not has_git else git("rev-parse", "HEAD").decode().strip(),
         "tracked_files": len(files),
         "current_findings": findings,
         "current_sensitive_paths": sensitive,
+        "working_tree_deleted_paths": deleted,
         "binary_requires_manual_review": binary,
         "limitations": [
             "Regex candidates require review; synthetic fixtures can match.",

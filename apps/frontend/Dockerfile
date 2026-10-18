@@ -12,7 +12,7 @@ WORKDIR /build
 COPY package.json package-lock.json* ./
 
 # 用 npm ci（严格按 lockfile，快 + 可复现）；devDependencies 也要（vite/tsc 在构建期需要）
-RUN npm ci --no-audit --no-fund --prefer-offline
+RUN npm ci --include=dev --no-audit --no-fund --prefer-offline
 
 # 再 copy 源码（源码变了只重跑 build，不重装依赖）
 COPY . .

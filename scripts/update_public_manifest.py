@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-IGNORED_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", "dist", "build", ".runtime", ".runtime_test_dbs", "uploads", "logs", "backups", "test-results", "playwright-report"}
+IGNORED_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", "dist", "build", ".runtime", ".runtime_logs", ".runtime_test_dbs", ".pids", "uploads", "logs", "backups", "secrets", "keys", "cache", ".cache", "test-results", "playwright-report"}
 IGNORED_SUFFIXES = {".pyc", ".db", ".db-journal", ".db-shm", ".db-wal", ".log", ".sqlite", ".sqlite-shm", ".sqlite-wal"}
 
 
@@ -29,7 +29,10 @@ def main():
     old = json.loads(target.read_text(encoding="utf-8"))["files"] if target.exists() else {}
     files = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(source_paths())}
     print(json.dumps({"files": len(files), "added": sorted(files.keys()-old.keys()), "removed": sorted(old.keys()-files.keys()), "modified": sorted(k for k in files.keys() & old.keys() if files[k] != old[k])}))
-    target.write_text(json.dumps({"format_version": 1, "history": "not included", "files": files}, indent=2) + "\n", encoding="utf-8")
+    previous = target.read_bytes() if target.exists() else b""
+    newline = b"\r\n" if b"\r\n" in previous else b"\n"
+    content = json.dumps({"format_version": 1, "project": "ThinkRoom", "history": "clean-source; no inherited private history", "files": files}, indent=2) + "\n"
+    target.write_bytes(content.encode("utf-8").replace(b"\n", newline))
 
 
 if __name__ == "__main__":
