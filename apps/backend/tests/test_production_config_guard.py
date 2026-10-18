@@ -41,7 +41,11 @@ def test_production_guard_rejects_unsafe_defaults():
         assert_production_safe(cfg)
 
 
-def test_production_guard_accepts_explicit_safe_configuration():
+def test_production_guard_accepts_explicit_safe_configuration(monkeypatch):
+    # CI intentionally clears REDIS_URL. The positive fixture must supply its
+    # own broker instead of relying on a developer's environment or defaults.
+    monkeypatch.setenv("REDIS_URL", "")
+    monkeypatch.setenv("CELERY_BROKER_URL", "")
     cfg = Settings(
         APP_ENV="production",
         DEPLOYMENT_CONFIG_ID="prod-20260708T080000Z",
@@ -52,6 +56,7 @@ def test_production_guard_accepts_explicit_safe_configuration():
         OPENROUTER_API_KEY="sk-or-prod",
         OPENROUTER_MOCK=False,
         REDIS_ENABLED=True,
+        CELERY_BROKER_URL="redis://localhost:6379/0",
         RATE_LIMIT_STORAGE_URI="redis://localhost:6379/1",
         MINIO_ENDPOINT="minio-prod.internal:9000",
         MINIO_SECURE=True,
@@ -62,6 +67,13 @@ def test_production_guard_accepts_explicit_safe_configuration():
 
     assert production_config_errors(cfg) == []
     assert_production_safe(cfg)
+
+
+def test_production_guard_rejects_missing_redis_broker():
+    cfg = Settings(APP_ENV="production", REDIS_URL="", CELERY_BROKER_URL="")
+    assert "CELERY_BROKER_URL must use Redis in production" in production_config_errors(cfg)
+    with pytest.raises(ProductionConfigError):
+        assert_production_safe(cfg)
 
 
 @pytest.mark.parametrize("name", ["APP_API_KEY", "APP_SECRET_KEY", "OPENROUTER_API_KEY", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"])

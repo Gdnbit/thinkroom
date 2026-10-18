@@ -392,7 +392,7 @@
     "apps/backend/tests/test_parent_context.py": "ec82e3030c14be5ee02697f71b755f8fc983c6233bcbe4aca1daa28d6fd8f14b",
     "apps/backend/tests/test_preflight_export_script.py": "b5fe4ec91e2a003e7c6bc12c05334c8f41e61c562f890df184f71bf2f42fdee5",
     "apps/backend/tests/test_production_compose_config_script.py": "10a4773c50f7adaed3a742e04ddc9ab7b03b93b3f99668600f97064bd2646b27",
-    "apps/backend/tests/test_production_config_guard.py": "89224d0d6014644d1633d0a98398090d4735f3c4a4e042f64cad262205849b7a",
+    "apps/backend/tests/test_production_config_guard.py": "36efc1f5fe2157d17a47d9566ba48a500a4a3090051c7aaadfece22f4fcb3536",
     "apps/backend/tests/test_production_env_materialization_script.py": "de577bb3d03249a73a5a5b334b106c7488f73a9f761f91351138a86e043cd681",
     "apps/backend/tests/test_production_env_validation_script.py": "a3ac6a449e637f20381ba5e3a3f92e11b516f8c92abab2b98d201c0f0525e010",
     "apps/backend/tests/test_production_operator_preflight_script.py": "d86b2ff91b86a82b5ebeda801ca2209021964fc5980ba2f285afe8f0a07b4399",
