@@ -1,70 +1,90 @@
 # ThinkRoom · 思考间
 
-**Turn sources into perspectives, and keep decisions traceable to evidence.**
+**Make the information you collect part of your next conversation—not just another saved file.**
 
-ThinkRoom is an open-source, multi-agent thinking tool for personal research and decision review. It organizes source material into claims and evidence, lets several analytical perspectives examine a new question, and retains what supported a judgment—not just the final answer.
+ThinkRoom is an **LLM-powered, private-source-first knowledge and multi-perspective thinking system**. It turns articles, notes, documents and optional external feeds into traceable knowledge, then retrieves relevant viewpoints for **Q&A, structured briefings and multi-role deliberation**.
 
-[中文](README.md) · [Guided demo](docs/DEMO.md) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+Financial research shaped its early design, but ThinkRoom is **not a trading platform**. Its more general design is a persistent six-stage knowledge pipeline: **collect → parse → process → store → retrieve → respond**.
 
-[![CI](https://github.com/Gdnbit/thinkroom/actions/workflows/ci.yml/badge.svg)](https://github.com/Gdnbit/thinkroom/actions/workflows/ci.yml) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[中文](README.md) · [Guided demo](docs/DEMO.md) · [Design origins](docs/DESIGN_ORIGINS.md) · [Docs](docs/README.md) · [Contributing](CONTRIBUTING.md)
 
-## A small example
+[![CI](https://github.com/Gdnbit/thinkroom/actions/workflows/ci.yml/badge.svg)](https://github.com/Gdnbit/thinkroom/actions/workflows/ci.yml) [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-Imagine a **fictional neighborhood library** testing longer evening hours. Its source document says:
+## Why build this?
 
-- Week one: **80** visits. Week two: **96** visits.
-- The trial relied on one volunteer.
-- Staffing costs and long-term demand **were not measured**.
+You may follow several thoughtful creators, save articles and research papers, and keep notes of your own. But when a new question arises, it is hard to find the useful connections across everything you saved.
 
-A summary can report a 20% increase. The decision still needs other questions: Is demand sustainable? What would extended hours cost? What if the volunteer becomes unavailable?
+Imagine deciding whether a small shop should adopt an AI customer-support assistant:
 
-ThinkRoom's aim is to keep **evidence, alternative perspectives, objections and uncertainties** in the same process, so you can see both what a source supports and what remains unknown.
+- **Writer A** suggests starting with a small FAQ pilot and gathering feedback.
+- **Writer B** points out privacy, answer accuracy and ongoing maintenance risks.
+- **Your notes** say customers mostly ask about opening hours and returns, while order records contain private information.
 
-This is a [synthetic fixture](examples/demo-evidence.txt), **not real customer data or a screenshot of validated model behavior**. [Try the guided demo →](docs/DEMO.md)
+You don't just want three summaries. You want to ask:
 
-## From sources to a reviewable decision
+> **Where do these views agree and disagree? What is a sensible first step—and what evidence is still missing?**
+
+ThinkRoom aims to make those source-grounded perspectives available for new questions. This is a **synthetic example**, not a real customer case or demonstrated model output. [Try the three fictional source files →](docs/DEMO.md)
+
+## The six-stage pipeline
 
 ```mermaid
 flowchart LR
-    A["Documents / notes"] --> B["Parsing · claims · source profiles"]
-    B --> C["Select sources · retrieve evidence"]
-    C --> D{"Choose a mode"}
-    D --> E["Q&A / briefing"]
-    D --> F["Multi-role committee"]
-    E --> G["Citations · quality checks · synthesis"]
-    F --> G
-    G --> H["Decision snapshot · outcome · replay"]
+    A["1 Collect<br/>Uploads / feeds"] --> B["2 Parse<br/>Text / OCR"]
+    B --> C["3 Process<br/>Claims / profiles"]
+    C --> D["4 Store<br/>Raw + derived"]
+    D --> E["5 Retrieve<br/>Scope + evidence"]
+    E --> F["6 Respond<br/>Chat / briefing / committee"]
+    F -. "Review outcomes" .-> G["Snapshot / replay"]
 ```
 
-ThinkRoom focuses on three practical questions:
+| Stage | Design goal | What the code does today |
+| --- | --- | --- |
+| **Collect** | Your own high-quality sources first; public information as optional context | Local uploads; optional social/news/market integrations require separate services and configuration |
+| **Parse** | Normalize different files while retaining provenance | TXT/Markdown, DOCX, PDF and images; text extraction, optional OCR/vision, long-image handling and diagnostics |
+| **Process** | Extract structured viewpoints without treating summaries as original truth | RawSource, ClaimCard, EvidenceSpan and SpeakerProfile with quality and deduplication paths |
+| **Store** | Retain raw evidence alongside derived knowledge | SQLite/Alembic, embeddings for claims, optional PostgreSQL/pgvector |
+| **Retrieve** | Find usable, relevant material within the requested scope | Vector/keyword retrieval and fallbacks, source scoping and selected quality constraints |
+| **Respond** | Choose an analysis depth appropriate to the question | Chat, structured briefing, optional multi-role committee, and decision/outcome replay |
 
-1. **Where did an idea come from?** Trace claims and supporting spans to the selected sources.
-2. **What would other perspectives challenge?** Use predefined analytical seats for multi-round deliberation and preserve disagreements.
-3. **What happened after the decision?** Save the evidence available at decision time and compare it with later outcomes.
+**Important boundary:** Raw/derived is a **logical knowledge-layer design**, not a claim that the original fully automatic Markdown-based LLM Wiki has been implemented. The primary file parser does not currently provide complete XLS/XLSX support; complex PDF/OCR extraction remains best-effort.
 
-> **Scope, not hype:** The committee uses predefined seats with retrieved claims and source-profile context. It **does not faithfully reconstruct any arbitrary author's mind as an independent agent**. A measurable quality advantage over ordinary Q&A has not been established. Source-faithful Mind agents are a direction, not a shipped guarantee.
+### Design principles
 
-## What works today
+**Private knowledge first.** Material you intentionally keep is the core asset. Optional social/news subscriptions add competing perspectives; market data can provide context when useful. These connectors depend on permissions, provider availability and extra setup—not guaranteed one-click extraction from every platform.
 
-| Capability | Implemented path |
-| --- | --- |
-| Source ingestion | Upload and parse documents; extract claims and source profiles |
-| Evidence-scoped Q&A | Ask within selected sources; review citations and quality warnings |
-| Structured briefing | Turn retrieved context into an evidence-aware briefing |
-| Multi-role deliberation | Run committee rounds and inspect arguments, disagreement and synthesis |
-| Decisions and replay | Save snapshots, record outcomes and revisit the supporting evidence |
-| Inspection tools | Review ingestion quality, evidence and workflow diagnostics |
+**Keep both sources and interpretations.** The RawSource layer preserves material; ClaimCards and EvidenceSpans make derived viewpoints traceable to evidence. Source profiles summarize aspects of an author's published material, **not a guaranteed faithful simulation of that person**. The project was inspired in part by the [LLM Wiki pattern](docs/DESIGN_ORIGINS.md).
 
-Market, social-data and backtesting modules are **experimental extensions**, not a validated financial recommendation system.
+**Respect evidence boundaries.** Selected-source queries should not silently pull in unrelated material. Insufficient evidence should remain visible; a plausible-sounding response must not overwrite that uncertainty. Saved decision snapshots can later be compared with observed outcomes. See the [accepted core-workflow ADR](docs/architecture/LOCAL_V01_CORE_WORKFLOW_ADR.md).
 
-## Quick start: local Mock mode
+## Three ways to think with your sources
 
-Start the isolated single-user workflow without real research data or a paid-model key.
+| Mode | Best for | Emphasis |
+| --- | --- | --- |
+| **Chat** | Fast explanations and source-specific questions | Direct answer, citations and evidence warnings |
+| **Briefing** | Structured analysis | Support, counterarguments, risks and conditional conclusions |
+| **Committee** | Examining disagreement through different lenses | Predefined analytical seats, multi-round discussion and synthesis |
 
-**Requirements:** Python 3.11, Node.js 20.19+ (tested with 22.20), and a modern browser.
+The current primary UI offers **manual mode switching**. An automatic intent router also exists in the backend, but is not the default workflow of the primary screen.
+
+Models and analytical roles can be configured; this **does not guarantee distinct providers for each seat**, a faithful reconstruction of arbitrary authors, or superior decision quality.
+
+## Beyond the chat window
+
+The primary experience has three surfaces: **Ask → Sources → Replay**.
+
+- **Ask:** Upload documents, follow ingestion progress, choose a mode and inspect citations.
+- **Sources:** Check what was ingested using calendar, timeline, category and knowledge-graph views.
+- **Replay:** Preserve confirmed decisions and compare original evidence with later outcomes.
+
+Source profiles, deliberation records, quality diagnostics, and market-related utilities are additional or experimental paths.
+
+## Quick start — local Mock mode
+
+Use **Python 3.11** and **Node.js 20.19+** (Node.js 22.20 tested). From the repository root:
 
 <details>
-<summary><strong>Windows · PowerShell</strong></summary>
+<summary>Windows · PowerShell</summary>
 
 ```powershell
 python -m venv .venv
@@ -75,7 +95,7 @@ python -m venv .venv
 </details>
 
 <details>
-<summary><strong>macOS / Linux</strong></summary>
+<summary>macOS / Linux</summary>
 
 ```bash
 python3.11 -m venv .venv
@@ -85,7 +105,7 @@ python3.11 -m venv .venv
 
 </details>
 
-In a **second terminal**:
+In another terminal:
 
 ```bash
 cd apps/frontend
@@ -93,36 +113,21 @@ npm ci
 npm run dev -- --host 127.0.0.1
 ```
 
-Open **http://127.0.0.1:5173/chat** and upload `examples/demo-evidence.txt`. Ask: “What supports continuing the evening-hours trial, and what remains unknown?” Explore **Knowledge**, **Deliberation** and **Review** through the app navigation.
+Open **http://127.0.0.1:5173/chat**, then try the [synthetic perspective files](docs/DEMO.md). Backend health: http://127.0.0.1:8000/health.
 
-- Backend health: http://127.0.0.1:8000/health
-- Isolated default database: `.runtime/data/public/local.db`; use `Ctrl+C` to stop.
-- **Mock mode checks basic plumbing, not the quality of live reasoning**, and not every optional data source is necessarily air-gapped.
-- For live models, inject `OPENROUTER_API_KEY` securely into the backend process environment and omit `--mock`. Live requests can incur charges and transmit selected material to the configured provider. [Demo and mode boundaries →](docs/DEMO.md)
+**Mock checks the technical path, not real reasoning quality**, and may not isolate every optional data service. For live models, securely inject `OPENROUTER_API_KEY` into the backend process and omit `--mock`. Requests may incur costs and transmit selected material to the configured model provider. Never commit real keys or private data.
 
-## Architecture at a glance
+## Stack and documentation
 
-| Layer | Implementation |
-| --- | --- |
-| UI | React, TypeScript, Vite |
-| API and workflows | FastAPI; ingestion, source scoping, deliberation and evidence gates |
-| Persistence | SQLite + Alembic locally; optional PostgreSQL / pgvector |
-| Retrieval | Claim cards, evidence spans, source profiles, semantic search and reranking |
-| Models | OpenRouter, role-specific model settings, and local Mock mode |
-| Deployment options | Redis, Celery and MinIO—not required for the local starter |
+React / TypeScript / Vite; FastAPI; RawSource–ClaimCard–EvidenceSpan–SpeakerProfile; SQLite + Alembic; optional PostgreSQL/pgvector; embeddings and retrieval fallbacks; configurable OpenRouter models. Optional external feeds, Redis, Celery and MinIO require additional configuration.
 
-See [documentation](docs/README.md) for structure, architecture, operation and source-release boundaries.
+- [Design origins and capability assessment](docs/DESIGN_ORIGINS.md)
+- [Guided synthetic demo](docs/DEMO.md) · [Architecture](docs/architecture/README.md)
+- [Local v0.1 acceptance boundary](docs/specs/local-v0.1/SCOPE_AND_ACCEPTANCE.md) · [Documentation index](docs/README.md)
+- [Release audit](docs/OPEN_SOURCE_RELEASE_AUDIT.md) · [Validation](VALIDATION.md)
 
-## Limitations and direction
+**Scope:** This is a local single-user research tool—not a validated trading system, public multi-tenant hosted service, or proven improvement over single-model Q&A. Complete author-faithful Mind agents, automatic knowledge maintenance and broader cross-domain evaluations remain directions for future work. OCR accuracy varies with the material and runtime. Overwrite restore is an offline operation.
 
-ThinkRoom currently targets **local, single-user research**. It is not certified for production public hosting, multi-tenant isolation, financial decision-making or superior committee outcomes. OCR and extraction accuracy vary with source material and configuration. Human review remains essential. Overwriting a database during restore requires an offline procedure, not online hot recovery.
+Use only materials you are permitted to process and send to your model provider. Keep local development listeners on loopback. See [SECURITY.md](SECURITY.md).
 
-Future work includes more faithful source-derived viewpoints, more explainable deliberation, reproducible evaluation and a simpler daily experience. These are goals—not claims about current functionality.
-
-## Contribute and use responsibly
-
-[Guided demo](docs/DEMO.md) · [Docs](docs/README.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Release audit](docs/OPEN_SOURCE_RELEASE_AUDIT.md) · [Validation](VALIDATION.md)
-
-Original contributions are [Apache-2.0](LICENSE) licensed. Third-party components retain their original terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-Only upload material you have permission to use and transmit to the model provider. Never commit credentials, private research, customer data or sensitive screenshots. Keep development listeners on loopback, not directly exposed to the internet.
+Original contributions are licensed under [Apache-2.0](LICENSE); external libraries keep their own terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
