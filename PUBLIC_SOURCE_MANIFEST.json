@@ -4,7 +4,7 @@
   "history": "clean-source; no inherited private history",
   "files": {
     ".gitattributes": "213a78b1602dc7f8e640d36b55b0cbacc47b1f792ef7e557dca6446de2a8d10a",
-    ".github/workflows/ci.yml": "85bf72c11d6df3fcbb66301c0011be2db72ddf0760570314fb994e78026fdabd",
+    ".github/workflows/ci.yml": "ee2b598df515fbe79cac86c94ef398c416e397577c50017a582df714f66a87f7",
     ".gitignore": "14a8db755f6a7e22a263540ed431b176d842c7d186b4221a633440fd14a00ac1",
     "apps/backend/.dockerignore": "5e9f637c38f1e1cadc05c6aeec564931c961cf2956dc02acca1e0ecd924d1050",
     "apps/backend/.env.example": "a6076d942df2665e9883cbdad8151b9c4038245673d8030c2c2f16bb01a7f2d8",
@@ -349,7 +349,7 @@
     "apps/backend/tests/test_decision_trace_api.py": "bc4dca64907a50c90fc6b8a2dfb0530cca0f3ec2f09a691e377ab0f0ef814b70",
     "apps/backend/tests/test_decision_trace_integration.py": "09494dedd02537acc7d7c4c57679d2d248b3ef7a2a3e75633c1d67fe91707369",
     "apps/backend/tests/test_decision_trace_service.py": "4f6b44e2f0e3774193a9b84a8893a9c9485418783d56398208758c58e9bef1ee",
-    "apps/backend/tests/test_dependency_security_baseline.py": "0d8aafc0b4651f68a37ad2d941312fe74fca6d4edb4c0d1fe80ae3da4c507ec8",
+    "apps/backend/tests/test_dependency_security_baseline.py": "14256ca8b6df671ebba43e3d991652dc88fe3e36c3e7cc6835208c931af79925",
     "apps/backend/tests/test_distributed_lock.py": "c5ed2662081f38c34c7b2335a078fe639d124fcac057e499cb549db3a64bb968",
     "apps/backend/tests/test_document_parse_result.py": "f02ee7362e0b529e797e099eb118af74a5b39fbde70c06de84ef65b1846c9392",
     "apps/backend/tests/test_document_parser_adapter.py": "3d03d1f9d837470a6ce1bba289cd7a1032776e94a65969475ac7c9fd65b7e5ef",

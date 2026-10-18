@@ -222,9 +222,9 @@ def test_ci_alembic_head_check_is_not_pinned_to_old_revision():
 
 def test_ci_backend_docker_smoke_does_not_bypass_production_guard_with_dev_config():
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-    block = _workflow_step_block(workflow, "Smoke test backend container (non-production liveness)")
+    block = _workflow_step_block(workflow, "Smoke test backend and frontend containers (non-production liveness)")
 
-    assert "Smoke test backend container (non-production liveness)" in workflow
+    assert "Smoke test backend and frontend containers (non-production liveness)" in workflow
     assert "-e APP_ENV=test" in block
     assert "-e APP_ENV=production" not in block
     assert "-e DATABASE_URL=sqlite:///./smoke.db" in block
@@ -256,16 +256,12 @@ def test_ci_backend_image_asserts_production_guard_fails_closed():
 
 def test_ci_docker_smoke_steps_cleanup_containers_on_failure():
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-    backend_block = _workflow_step_block(workflow, "Smoke test backend container (non-production liveness)")
-    frontend_block = _workflow_step_block(workflow, "Smoke test frontend container")
+    block = _workflow_step_block(workflow, "Smoke test backend and frontend containers (non-production liveness)")
 
-    assert "cleanup_backend_smoke()" in backend_block
-    assert "trap cleanup_backend_smoke EXIT" in backend_block
-    assert "docker rm -f ros-backend-smoke" in backend_block
-
-    assert "cleanup_frontend_smoke()" in frontend_block
-    assert "trap cleanup_frontend_smoke EXIT" in frontend_block
-    assert "docker rm -f ros-frontend-smoke" in frontend_block
+    assert "cleanup_container_smoke()" in block
+    assert "trap cleanup_container_smoke EXIT" in block
+    assert "docker rm -f ros-frontend-smoke ros-backend-smoke" in block
+    assert "docker network rm ros-smoke-net" in block
 
 
 def test_ci_docker_release_boundary_steps_use_strict_shell():
@@ -274,17 +270,15 @@ def test_ci_docker_release_boundary_steps_use_strict_shell():
         workflow,
         "Production guard rejects unsafe backend container config",
     )
-    backend_smoke = _workflow_step_block(workflow, "Smoke test backend container (non-production liveness)")
-    frontend_smoke = _workflow_step_block(workflow, "Smoke test frontend container")
+    smoke = _workflow_step_block(workflow, "Smoke test backend and frontend containers (non-production liveness)")
 
     assert "set -euo pipefail" in production_guard
-    assert "set -euo pipefail" in backend_smoke
-    assert "set -euo pipefail" in frontend_smoke
+    assert "set -euo pipefail" in smoke
 
 
 def test_ci_frontend_docker_smoke_waits_for_health_condition():
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-    block = _workflow_step_block(workflow, "Smoke test frontend container")
+    block = _workflow_step_block(workflow, "Smoke test backend and frontend containers (non-production liveness)")
 
     assert "sleep 3" not in block
     assert "frontend_healthy=false" in block
@@ -297,9 +291,9 @@ def test_ci_frontend_docker_smoke_waits_for_health_condition():
 def test_ci_docker_smoke_steps_have_clear_failure_diagnostics():
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
     backend_block = _workflow_step_block(
-        workflow, "Smoke test backend container (non-production liveness)"
+        workflow, "Smoke test backend and frontend containers (non-production liveness)"
     )
-    frontend_block = _workflow_step_block(workflow, "Smoke test frontend container")
+    frontend_block = backend_block
 
     assert "backend_healthy=false" in backend_block
     assert "backend_healthy=true" in backend_block
@@ -309,6 +303,16 @@ def test_ci_docker_smoke_steps_have_clear_failure_diagnostics():
 
     assert "frontend container did not become healthy" in frontend_block
     assert "docker logs ros-frontend-smoke --tail 30" in frontend_block
+
+
+def test_ci_frontend_smoke_has_a_real_backend_upstream():
+    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    block = _workflow_step_block(workflow, "Smoke test backend and frontend containers (non-production liveness)")
+    assert "docker network create ros-smoke-net" in block
+    assert "--network ros-smoke-net --network-alias backend" in block
+    assert "--name ros-frontend-smoke --network ros-smoke-net" in block
+    assert block.index("backend healthy") < block.index("docker run -d --name ros-frontend-smoke")
+    assert "curl -fsS http://localhost/api/v1/health" in block
 
 
 def test_production_compose_requires_secret_source_metadata_for_release_gate():

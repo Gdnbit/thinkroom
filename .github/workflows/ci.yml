@@ -329,17 +329,22 @@ jobs:
           fi
           echo "$output" | grep -q "ProductionConfigError"
 
-      - name: Smoke test backend container (non-production liveness)
+      - name: Smoke test backend and frontend containers (non-production liveness)
         run: |
           set -euo pipefail
-          cleanup_backend_smoke() {
+          cleanup_container_smoke() {
+            docker logs ros-frontend-smoke --tail 30 || true
             docker logs ros-backend-smoke --tail 30 || true
-            docker rm -f ros-backend-smoke >/dev/null 2>&1 || true
+            docker rm -f ros-frontend-smoke ros-backend-smoke >/dev/null 2>&1 || true
+            docker network rm ros-smoke-net >/dev/null 2>&1 || true
           }
-          trap cleanup_backend_smoke EXIT
+          trap cleanup_container_smoke EXIT
+          # Match the Compose DNS contract required by nginx's backend upstream.
+          docker network create ros-smoke-net
           # 启动生产镜像的非生产 profile（无外部依赖），检查 /health 能响应。
           # 真实生产发布由 release gate / production dry-run 校验；这里不使用 APP_ENV=production + SQLite/空密钥绕过生产 guard。
           docker run -d --name ros-backend-smoke \
+            --network ros-smoke-net --network-alias backend \
             -e APP_ENV=test \
             -e APP_DEBUG=false \
             -e APP_API_KEY= \
@@ -364,15 +369,7 @@ jobs:
           curl -fsS http://localhost:8000/health
           echo "backend healthy"
 
-      - name: Smoke test frontend container
-        run: |
-          set -euo pipefail
-          cleanup_frontend_smoke() {
-            docker logs ros-frontend-smoke --tail 30 || true
-            docker rm -f ros-frontend-smoke >/dev/null 2>&1 || true
-          }
-          trap cleanup_frontend_smoke EXIT
-          docker run -d --name ros-frontend-smoke -p 80:80 ros-frontend:ci
+          docker run -d --name ros-frontend-smoke --network ros-smoke-net -p 80:80 ros-frontend:ci
           frontend_healthy=false
           for i in {1..30}; do
             if curl -fsS -o /dev/null http://localhost/health; then
@@ -387,4 +384,6 @@ jobs:
           fi
           # 静态首页
           curl -fsS -o /dev/null http://localhost/
+          # Verify the real nginx upstream, not just the static health endpoint.
+          curl -fsS http://localhost/api/v1/health
           echo "frontend healthy"
