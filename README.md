@@ -92,7 +92,7 @@ RawSource 保留基础材料；ClaimCard 与 EvidenceSpan 使抽取的观点能�
 
 ## 本地启动（无需付费模型的 Mock 模式）
 
-要求 **Python 3.11** 和 **Node.js 20.19+**（Node.js 22.20 已验证）。克隆仓库后，在根目录执行：
+要求 **Python 3.11.5 及以上的 3.11 补丁版本**和 **Node.js 20.19+**（Node.js 22.20 已验证）。克隆仓库后，在根目录执行：
 
 <details>
 <summary>Windows · PowerShell</summary>

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$PythonVersion = "3.11",
+    [string]$PythonVersion = "3.11.5",
     [switch]$Upgrade
 )
 

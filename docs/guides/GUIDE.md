@@ -14,7 +14,7 @@ outside this guide. Historical instructions remain under `docs/handover/` and
 Required:
 
 - Windows PowerShell;
-- Python 3.11+;
+- Python 3.11.5 or a newer 3.11 patch release;
 - Node.js 18+;
 - project `.venv` created by the setup script;
 - `secrets` CLI available in the shell;

@@ -81,7 +81,7 @@ Source profiles, deliberation records, quality diagnostics, and market-related u
 
 ## Quick start — local Mock mode
 
-Use **Python 3.11** and **Node.js 20.19+** (Node.js 22.20 tested). From the repository root:
+Use **Python 3.11.5 or a newer 3.11 patch release** and **Node.js 20.19+** (Node.js 22.20 tested). From the repository root:
 
 <details>
 <summary>Windows · PowerShell</summary>
