@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.dependencies import get_db
 from app.schemas.raw_source import RawSource, SourceAttachment
@@ -105,20 +105,37 @@ class BatchAuditReport(BaseModel):
 
 # ── Helpers ──────────────────────────────────────────────
 
-def _audit_source(s: RawSource, db: Session) -> SourceAuditReport:
+def _load_audit_relations(db: Session, source_ids: list[str]):
+    attachments = {}
+    claims = {}
+    if source_ids:
+        for attachment in (
+            db.query(SourceAttachment)
+            .options(load_only(SourceAttachment.source_id, SourceAttachment.created_at, SourceAttachment.storage_path,
+                               SourceAttachment.file_name, SourceAttachment.attachment_type, SourceAttachment.file_size_bytes))
+            .filter(SourceAttachment.source_id.in_(source_ids))
+            .order_by(SourceAttachment.created_at.asc())
+        ):
+            attachments.setdefault(attachment.source_id, []).append(attachment)
+        for source_id, claim in (
+            db.query(ClaimRawSourceLink.source_id, ClaimCard)
+            .options(load_only(ClaimCard.summary, ClaimCard.full_quote, ClaimCard.claim_type,
+                               ClaimCard.stance, ClaimCard.confidence, ClaimCard.asset_scope))
+            .join(ClaimCard, ClaimCard.id == ClaimRawSourceLink.claim_id)
+            .filter(ClaimRawSourceLink.source_id.in_(source_ids))
+        ):
+            claims.setdefault(source_id, []).append(claim)
+    return attachments, claims
+
+
+def _audit_source(s: RawSource, attachments, claims) -> SourceAuditReport:
     """对单个 source 进行完整审计。"""
     text = s.raw_text or ""
     issues: List[AuditIssue] = []
 
     # ── Attachments ──
-    atts = (
-        db.query(SourceAttachment)
-        .filter(SourceAttachment.source_id == s.id)
-        .order_by(SourceAttachment.created_at.asc())
-        .all()
-    )
     att_infos = []
-    for a in atts:
+    for a in attachments:
         exists = Path(a.storage_path).exists() if a.storage_path else False
         att_infos.append(AttachmentInfo(
             file_name=a.file_name or "",
@@ -130,24 +147,21 @@ def _audit_source(s: RawSource, db: Session) -> SourceAuditReport:
             issues.append(AuditIssue(severity="WARNING", message=f"Attachment file missing: {a.file_name}"))
 
     # ── Claims ──
-    links = db.query(ClaimRawSourceLink).filter(ClaimRawSourceLink.source_id == s.id).all()
     claim_infos = []
     has_quote_count = 0
-    for link in links:
-        c = db.query(ClaimCard).filter(ClaimCard.id == link.claim_id).first()
-        if c:
-            fq = c.full_quote or ""
-            if fq.strip():
-                has_quote_count += 1
-            claim_infos.append(ClaimInfo(
-                summary=c.summary or "",
-                full_quote=fq[:300] if fq else None,
-                full_quote_length=len(fq),
-                claim_type=c.claim_type or "",
-                stance=c.stance or "",
-                confidence=c.confidence or 0,
-                asset_scope=c.asset_scope or [],
-            ))
+    for c in claims:
+        fq = c.full_quote or ""
+        if fq.strip():
+            has_quote_count += 1
+        claim_infos.append(ClaimInfo(
+            summary=c.summary or "",
+            full_quote=fq[:300] if fq else None,
+            full_quote_length=len(fq),
+            claim_type=c.claim_type or "",
+            stance=c.stance or "",
+            confidence=c.confidence or 0,
+            asset_scope=c.asset_scope or [],
+        ))
 
     # ── Text Quality ──
     lines = text.split('\n')
@@ -275,7 +289,8 @@ def audit_all_sources(
         query = query.filter(RawSource.source_type == source_type)
 
     sources = query.limit(limit).all()
-    reports = [_audit_source(s, db) for s in sources]
+    attachments, claims = _load_audit_relations(db, [source.id for source in sources])
+    reports = [_audit_source(s, attachments.get(s.id, ()), claims.get(s.id, ())) for s in sources]
 
     if only_issues:
         reports = [r for r in reports if r.issues]
@@ -316,7 +331,8 @@ def audit_single_source(
     if not s:
         from fastapi import HTTPException
         raise HTTPException(404, f"Source {source_id} not found")
-    return _audit_source(s, db)
+    attachments, claims = _load_audit_relations(db, [s.id])
+    return _audit_source(s, attachments.get(s.id, ()), claims.get(s.id, ()))
 
 
 @router.get("/source/{source_id}/full_text")
@@ -345,30 +361,33 @@ def get_source_claims_detail(
     db: Session = Depends(get_db),
 ):
     """获取 source 关联的所有 claims 的完整信息（包含 full_quote 全文）。"""
-    s = db.query(RawSource).filter(RawSource.id == source_id).first()
+    s = db.query(RawSource.id, RawSource.title, RawSource.source_type).filter(RawSource.id == source_id).first()
     if not s:
         from fastapi import HTTPException
         raise HTTPException(404, f"Source {source_id} not found")
 
-    links = db.query(ClaimRawSourceLink).filter(ClaimRawSourceLink.source_id == s.id).all()
-    claims = []
-    for link in links:
-        c = db.query(ClaimCard).filter(ClaimCard.id == link.claim_id).first()
-        if c:
-            claims.append({
-                "claim_id": c.id,
-                "summary": c.summary,
-                "full_quote": c.full_quote,
-                "claim_type": c.claim_type,
-                "stance": c.stance,
-                "time_horizon": c.time_horizon,
-                "confidence": c.confidence,
-                "asset_scope": c.asset_scope or [],
-                "theme_scope": c.theme_scope or [],
-                "reasoning_basis": c.reasoning_basis or [],
-                "conditions": c.conditions or [],
-                "invalidation_conditions": c.invalidation_conditions or [],
-            })
+    linked_claims = (
+        db.query(ClaimCard)
+        .join(ClaimRawSourceLink, ClaimRawSourceLink.claim_id == ClaimCard.id)
+        .filter(ClaimRawSourceLink.source_id == s.id)
+    )
+    claims = [
+        {
+            "claim_id": c.id,
+            "summary": c.summary,
+            "full_quote": c.full_quote,
+            "claim_type": c.claim_type,
+            "stance": c.stance,
+            "time_horizon": c.time_horizon,
+            "confidence": c.confidence,
+            "asset_scope": c.asset_scope or [],
+            "theme_scope": c.theme_scope or [],
+            "reasoning_basis": c.reasoning_basis or [],
+            "conditions": c.conditions or [],
+            "invalidation_conditions": c.invalidation_conditions or [],
+        }
+        for c in linked_claims
+    ]
 
     return {
         "source_id": s.id,

@@ -1,6 +1,7 @@
 """Chat Sessions API — 知识库问答会话持久化"""
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from typing import Any, List, Optional
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from ulid import ULID
@@ -162,6 +163,12 @@ class UploadReceiptCreate(BaseModel):
 def list_sessions(db: Session = Depends(get_db)):
     """获取所有会话（按最新优先）"""
     sessions = db.query(ChatSession).order_by(ChatSession.updated_at.desc()).limit(50).all()
+    message_counts = dict(
+        db.query(ChatMessage.session_id, func.count(ChatMessage.id))
+        .filter(ChatMessage.session_id.in_([session.id for session in sessions]))
+        .group_by(ChatMessage.session_id)
+        .all()
+    ) if sessions else {}
     return [
         {
             "id": s.id,
@@ -169,7 +176,7 @@ def list_sessions(db: Session = Depends(get_db)):
             "mode": s.mode,
             "asset": s.asset,
             "updated_at": s.updated_at.isoformat() if s.updated_at else None,
-            "message_count": len(s.messages),
+            "message_count": message_counts.get(s.id, 0),
         }
         for s in sessions
     ]

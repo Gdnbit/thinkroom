@@ -36,11 +36,10 @@ def _since(since_days: int) -> datetime:
     return _now() - timedelta(days=max(1, int(since_days)))
 
 
-def _percentile(values: List[float], p: float) -> Optional[float]:
-    """内联求百分位（不引 numpy）。p in [0, 100]."""
-    if not values:
+def _percentile(sorted_v: List[float], p: float) -> Optional[float]:
+    """对已经排序的样本求百分位。p in [0, 100]."""
+    if not sorted_v:
         return None
-    sorted_v = sorted(values)
     k = (len(sorted_v) - 1) * (p / 100.0)
     f = int(k)
     c = min(f + 1, len(sorted_v) - 1)
@@ -56,7 +55,7 @@ def get_quality_summary(db: Session, since_days: int = 7) -> Dict[str, Any]:
     """整体统计：调用总数 / 成功率 / 延迟分布."""
     since = _since(since_days)
     rows = (
-        db.query(SourceHealthLog)
+        db.query(SourceHealthLog.success, SourceHealthLog.latency_ms)
         .filter(SourceHealthLog.checked_at >= since)
         .all()
     )
@@ -78,7 +77,7 @@ def get_quality_summary(db: Session, since_days: int = 7) -> Dict[str, Any]:
 
     success_count = sum(1 for r in rows if r.success)
     failure_count = total - success_count
-    latencies = [r.latency_ms for r in rows if r.latency_ms is not None]
+    latencies = sorted(r.latency_ms for r in rows if r.latency_ms is not None)
 
     return {
         "total_calls": total,
@@ -98,14 +97,15 @@ def get_quality_by_source(db: Session, since_days: int = 7) -> List[Dict[str, An
     """按 source_name 分组的统计；每行一个 source."""
     since = _since(since_days)
     rows = (
-        db.query(SourceHealthLog)
+        db.query(SourceHealthLog.source_name, SourceHealthLog.success, SourceHealthLog.latency_ms,
+                 SourceHealthLog.checked_at, SourceHealthLog.error_message)
         .filter(SourceHealthLog.checked_at >= since)
         .all()
     )
     if not rows:
         return []
 
-    grouped: Dict[str, List[SourceHealthLog]] = defaultdict(list)
+    grouped = defaultdict(list)
     for r in rows:
         grouped[r.source_name or "unknown"].append(r)
 
@@ -113,7 +113,7 @@ def get_quality_by_source(db: Session, since_days: int = 7) -> List[Dict[str, An
     for name, batch in grouped.items():
         total = len(batch)
         success_count = sum(1 for r in batch if r.success)
-        latencies = [r.latency_ms for r in batch if r.latency_ms is not None]
+        latencies = sorted(r.latency_ms for r in batch if r.latency_ms is not None)
         last = max(batch, key=lambda r: r.checked_at)
         out.append({
             "source_name": name,
@@ -140,7 +140,7 @@ def get_quality_by_symbol(db: Session, since_days: int = 7, limit: int = 50) -> 
     """
     since = _since(since_days)
     rows = (
-        db.query(SourceHealthLog)
+        db.query(SourceHealthLog.symbol, SourceHealthLog.success)
         .filter(
             SourceHealthLog.checked_at >= since,
             SourceHealthLog.symbol.isnot(None),
@@ -150,7 +150,7 @@ def get_quality_by_symbol(db: Session, since_days: int = 7, limit: int = 50) -> 
     if not rows:
         return []
 
-    grouped: Dict[str, List[SourceHealthLog]] = defaultdict(list)
+    grouped = defaultdict(list)
     for r in rows:
         grouped[r.symbol or "unknown"].append(r)
 
@@ -181,7 +181,7 @@ def get_quality_timeseries(
     """
     since = _since(since_days)
     rows = (
-        db.query(SourceHealthLog)
+        db.query(SourceHealthLog.checked_at, SourceHealthLog.success, SourceHealthLog.latency_ms)
         .filter(SourceHealthLog.checked_at >= since)
         .all()
     )
@@ -197,7 +197,7 @@ def get_quality_timeseries(
         bucketed = (epoch // bucket_seconds) * bucket_seconds
         return datetime.fromtimestamp(bucketed, tz=timezone.utc)
 
-    grouped: Dict[datetime, List[SourceHealthLog]] = defaultdict(list)
+    grouped = defaultdict(list)
     for r in rows:
         if r.checked_at:
             grouped[_bucket_start(r.checked_at)].append(r)
@@ -206,7 +206,7 @@ def get_quality_timeseries(
     for bucket_ts, batch in sorted(grouped.items()):
         total = len(batch)
         success = sum(1 for r in batch if r.success)
-        latencies = [r.latency_ms for r in batch if r.latency_ms is not None]
+        latencies = sorted(r.latency_ms for r in batch if r.latency_ms is not None)
         out.append({
             "bucket_start_iso": bucket_ts.isoformat(),
             "total_calls": total,
@@ -222,7 +222,8 @@ def get_quality_timeseries(
 def get_recent_errors(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
     """最近的失败记录（运营定位故障用）."""
     rows = (
-        db.query(SourceHealthLog)
+        db.query(SourceHealthLog.id, SourceHealthLog.source_name, SourceHealthLog.symbol,
+                 SourceHealthLog.checked_at, SourceHealthLog.error_message, SourceHealthLog.http_status)
         .filter(SourceHealthLog.success.is_(False))
         .order_by(SourceHealthLog.checked_at.desc())
         .limit(max(1, min(int(limit), 500)))
@@ -248,7 +249,7 @@ def get_error_categories(db: Session, since_days: int = 7) -> List[Dict[str, Any
     """
     since = _since(since_days)
     rows = (
-        db.query(SourceHealthLog)
+        db.query(SourceHealthLog.error_message)
         .filter(
             SourceHealthLog.checked_at >= since,
             SourceHealthLog.success.is_(False),

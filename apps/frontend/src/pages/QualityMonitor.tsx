@@ -103,38 +103,38 @@ const CATEGORY_LABELS: Record<string, string> = {
 function useQualityData(sinceDays: number, bucketHours: number) {
   const summary = useQuery({
     queryKey: ['quality', 'summary', sinceDays],
-    queryFn: () =>
-      api.get<QualitySummary>('/api/v1/quality-monitor/summary', { params: { since_days: sinceDays } }).then(r => r.data),
+    queryFn: ({ signal }) =>
+      api.get<QualitySummary>('/api/v1/quality-monitor/summary', { signal, params: { since_days: sinceDays } }).then(r => r.data),
     refetchInterval: 60000,
   })
   const bySource = useQuery({
     queryKey: ['quality', 'by-source', sinceDays],
-    queryFn: () =>
-      api.get<BySource[]>('/api/v1/quality-monitor/by-source', { params: { since_days: sinceDays } }).then(r => r.data),
+    queryFn: ({ signal }) =>
+      api.get<BySource[]>('/api/v1/quality-monitor/by-source', { signal, params: { since_days: sinceDays } }).then(r => r.data),
     refetchInterval: 60000,
   })
   const bySymbol = useQuery({
     queryKey: ['quality', 'by-symbol', sinceDays],
-    queryFn: () =>
-      api.get<BySymbol[]>('/api/v1/quality-monitor/by-symbol', { params: { since_days: sinceDays, limit: 20 } }).then(r => r.data),
+    queryFn: ({ signal }) =>
+      api.get<BySymbol[]>('/api/v1/quality-monitor/by-symbol', { signal, params: { since_days: sinceDays, limit: 20 } }).then(r => r.data),
     refetchInterval: 60000,
   })
   const timeseries = useQuery({
     queryKey: ['quality', 'timeseries', sinceDays, bucketHours],
-    queryFn: () =>
-      api.get<TimeseriesBucket[]>('/api/v1/quality-monitor/timeseries', { params: { since_days: sinceDays, bucket_hours: bucketHours } }).then(r => r.data),
+    queryFn: ({ signal }) =>
+      api.get<TimeseriesBucket[]>('/api/v1/quality-monitor/timeseries', { signal, params: { since_days: sinceDays, bucket_hours: bucketHours } }).then(r => r.data),
     refetchInterval: 60000,
   })
   const errors = useQuery({
     queryKey: ['quality', 'errors'],
-    queryFn: () =>
-      api.get<ErrorRecord[]>('/api/v1/quality-monitor/errors', { params: { limit: 30 } }).then(r => r.data),
+    queryFn: ({ signal }) =>
+      api.get<ErrorRecord[]>('/api/v1/quality-monitor/errors', { signal, params: { limit: 30 } }).then(r => r.data),
     refetchInterval: 60000,
   })
   const errorCategories = useQuery({
     queryKey: ['quality', 'error-categories', sinceDays],
-    queryFn: () =>
-      api.get<ErrorCategory[]>('/api/v1/quality-monitor/error-categories', { params: { since_days: sinceDays } }).then(r => r.data),
+    queryFn: ({ signal }) =>
+      api.get<ErrorCategory[]>('/api/v1/quality-monitor/error-categories', { signal, params: { since_days: sinceDays } }).then(r => r.data),
     refetchInterval: 60000,
   })
   return { summary, bySource, bySymbol, timeseries, errors, errorCategories }

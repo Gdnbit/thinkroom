@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { lazy, Suspense, useMemo, useState, useCallback, useEffect } from 'react'
 import { escapeHtml } from '@/utils/escapeHtml'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -27,15 +27,16 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import api, { apiLong } from '@/services/api'
-import ApiTestPanel from './verification/ApiTestPanel'
-import SystemStatusPanel from './verification/SystemStatusPanel'
-import IngestionQualityPanel from './verification/IngestionQualityPanel'
-import CommitteeV2TestPanel from './verification/CommitteeV2TestPanel'
 import { loadHistory, saveHistory, deleteHistory, clearHistory, getStorageInfo, type TestHistoryRecord, type TestCategory } from '@/services/testHistory'
 import TestHistorySection from './verification/TestHistorySection'
 import MasterTestPanel from './verification/MasterTestPanel'
-import ModeRouterPanel from './verification/ModeRouterPanel'
 import { Compass } from 'lucide-react'
+
+const ApiTestPanel = lazy(() => import('./verification/ApiTestPanel'))
+const SystemStatusPanel = lazy(() => import('./verification/SystemStatusPanel'))
+const IngestionQualityPanel = lazy(() => import('./verification/IngestionQualityPanel'))
+const CommitteeV2TestPanel = lazy(() => import('./verification/CommitteeV2TestPanel'))
+const ModeRouterPanel = lazy(() => import('./verification/ModeRouterPanel'))
 
 interface ScenarioMeta {
   scenario_id: string
@@ -108,10 +109,11 @@ interface VerificationSuiteResult {
   copy_text: string
 }
 
-function useScenarios() {
+function useScenarios(enabled: boolean) {
   return useQuery({
     queryKey: ['verification-scenarios'],
-    queryFn: () => api.get<ScenarioMeta[]>('/api/v1/verification/scenarios').then((r) => r.data),
+    queryFn: ({ signal }) => api.get<ScenarioMeta[]>('/api/v1/verification/scenarios', { signal }).then((r) => r.data),
+    enabled,
     staleTime: 5 * 60 * 1000,
     retry: 2,
     retryDelay: 1000,
@@ -236,12 +238,12 @@ const TABS: { key: TabKey; label: string; icon: any; desc: string }[] = [
 ]
 
 export default function Verification() {
-  const { data: scenarios, isLoading, isError, refetch } = useScenarios()
   const runMutation = useRunScenario()
   const runSuiteMutation = useRunSuite()
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<TabKey>('master')
+  const { data: scenarios, isLoading, isError, refetch } = useScenarios(activeTab === 'scenarios')
   const [selected, setSelected] = useState<string | null>(null)
   const [report, setReport] = useState<VerificationReport | null>(null)
   const [suiteResult, setSuiteResult] = useState<VerificationSuiteResult | null>(null)
@@ -566,20 +568,13 @@ export default function Verification() {
       {/* ── Tab: 终极检测 ── */}
       {activeTab === 'master' && <MasterTestPanel />}
 
-      {/* ── Tab: 接口面板 ── */}
-      {activeTab === 'api' && <ApiTestPanel />}
-
-      {/* ── Tab: 解析质量 ── */}
-      {activeTab === 'ingestion' && <IngestionQualityPanel />}
-
-      {/* ── Tab: 系统状态 ── */}
-      {activeTab === 'status' && <SystemStatusPanel />}
-
-      {/* ── Tab: V2 专项测试 ── */}
-      {activeTab === 'v2' && <CommitteeV2TestPanel />}
-
-      {/* ── Tab: 路由审计（G20） ── */}
-      {activeTab === 'mode-router' && <ModeRouterPanel />}
+      <Suspense fallback={<p role="status" className="p-4 text-xs text-muted-foreground">加载面板…</p>}>
+        {activeTab === 'api' && <ApiTestPanel />}
+        {activeTab === 'ingestion' && <IngestionQualityPanel />}
+        {activeTab === 'status' && <SystemStatusPanel />}
+        {activeTab === 'v2' && <CommitteeV2TestPanel />}
+        {activeTab === 'mode-router' && <ModeRouterPanel />}
+      </Suspense>
 
       {/* ── Tab: 历史记录 ── */}
       {activeTab === 'history' && (

@@ -1,16 +1,17 @@
-import { lazy, Suspense } from 'react'
+import { lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from '@/components/Layout'
-import Dashboard from '@/pages/Dashboard'
-import DecisionChatFlow from '@/pages/DecisionChatFlow'
+import { routeLoaders } from '@/routeLoaders'
 
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const DecisionChatFlow = lazy(routeLoaders['/chat'])
 const Watchlist = lazy(() => import('@/pages/Watchlist'))
 const ResearchChat = lazy(() => import('@/pages/ResearchChat'))
 const Strategies = lazy(() => import('@/pages/Strategies'))
-const Review = lazy(() => import('@/pages/Review'))
+const Review = lazy(routeLoaders['/review'])
 const Verification = lazy(() => import('@/pages/Verification'))
 const Settings = lazy(() => import('@/pages/Settings'))
-const KnowledgeBase = lazy(() => import('@/pages/KnowledgeBase'))
+const KnowledgeBase = lazy(routeLoaders['/knowledge'])
 const DebateViewer = lazy(() => import('@/pages/DebateViewer'))
 const DataFlowPage = lazy(() => import('@/pages/DataFlow'))
 const DataHub = lazy(() => import('@/pages/DataHub'))
@@ -22,17 +23,8 @@ const FundReconciliation = lazy(() => import('@/pages/FundReconciliation'))
 const FundProfiles = lazy(() => import('@/pages/FundProfiles'))
 const QualityEvaluator = lazy(() => import('@/pages/QualityEvaluator'))
 
-function PageFallback() {
-  return (
-    <div className="flex min-h-[40vh] items-center justify-center text-xs text-muted-foreground">
-      Loading
-    </div>
-  )
-}
-
 export default function App() {
   return (
-    <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Navigate to="/chat" replace />} />
@@ -60,6 +52,5 @@ export default function App() {
           <Route path="quality-evaluator" element={<QualityEvaluator />} />
         </Route>
       </Routes>
-    </Suspense>
   )
 }

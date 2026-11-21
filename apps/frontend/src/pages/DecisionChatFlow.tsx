@@ -1,7 +1,5 @@
-import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, lazy, memo, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import {
   AlertCircle,
   Bot,
@@ -907,7 +905,9 @@ function getGeneratedResultPersistenceMessage(error: GeneratedResultPersistenceE
   return `${label}已生成，但暂未保存到当前会话。请刷新后核对，避免重复提交。`
 }
 
-function MessageBubble({ message }: { message: ChatMsg }) {
+const AnswerMarkdown = lazy(() => import('@/components/AnswerMarkdown'))
+
+const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMsg }) {
   const isAssistant = message.role === 'assistant'
   const payload = message.payload && typeof message.payload === 'object' ? message.payload : {}
   const claimsUsed = typeof payload.claims_used === 'number' ? payload.claims_used : undefined
@@ -955,8 +955,8 @@ function MessageBubble({ message }: { message: ChatMsg }) {
           )}
         >
           {isAssistant ? (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+            <Suspense fallback={<p className="m-0 whitespace-pre-wrap">{displayContent}</p>}>
+            <AnswerMarkdown
               components={{
                 p: ({ children }) => <p className="mb-3 last:mb-0">{withLocalCitations(children, citations)}</p>,
                 li: ({ children }) => <li>{withLocalCitations(children, citations)}</li>,
@@ -966,7 +966,8 @@ function MessageBubble({ message }: { message: ChatMsg }) {
               }}
             >
               {displayContent}
-            </ReactMarkdown>
+            </AnswerMarkdown>
+            </Suspense>
           ) : (
             <p className="m-0 whitespace-pre-wrap">{displayContent}</p>
           )}
@@ -1028,7 +1029,7 @@ function MessageBubble({ message }: { message: ChatMsg }) {
       )}
     </div>
   )
-}
+})
 
 function EmptyConversation() {
   return (
@@ -1061,6 +1062,14 @@ export function DecisionChatFlow() {
   const [showCompactHistory, setShowCompactHistory] = useState(false)
   const [pendingBySession, setPendingBySession] = useState<Record<string, PendingAnswerState>>({})
   const [uploadBySession, setUploadBySession] = useState<Record<string, UploadProgressState>>({})
+  const uploadsRef = useRef(uploadBySession)
+  useEffect(() => { uploadsRef.current = uploadBySession }, [uploadBySession])
+  const hasActiveUpload = Object.values(uploadBySession).some(
+    (item) => !item.done && !item.failed && !item.timedOut && !item.cancelled,
+  )
+  const hasPollableUpload = Object.values(uploadBySession).some(
+    (item) => item.jobIds.length && !item.done && !item.failed && !item.cancelled,
+  )
   const [cancellingUploadBySession, setCancellingUploadBySession] = useState<Record<string, boolean>>({})
   const uploadAbortBySessionRef = useRef<Record<string, AbortController>>({})
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1189,7 +1198,6 @@ export function DecisionChatFlow() {
   }, [hasPendingAnswer])
 
   useEffect(() => {
-    const hasActiveUpload = Object.values(uploadBySession).some((item) => !item.done && !item.failed && !item.timedOut && !item.cancelled)
     if (!hasActiveUpload) return
     const timer = window.setInterval(() => {
       const now = Date.now()
@@ -1206,30 +1214,38 @@ export function DecisionChatFlow() {
       )
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [uploadBySession])
+  }, [hasActiveUpload])
 
   useEffect(() => {
-    const pollableUploads = Object.values(uploadBySession).filter(
-      (item) => item.jobIds.length && !item.done && !item.failed && !item.cancelled,
-    )
-    if (!pollableUploads.length) return
+    if (!hasPollableUpload) return
     let cancelled = false
+    let inFlight = false
 
     const refreshProgress = async () => {
-      await Promise.allSettled(
-        pollableUploads.map(async (upload) => {
-          const progress = await getSessionBackgroundProgress(upload.sessionId)
-          if (cancelled || !progress) return
-          setUploadBySession((current) => {
-            const existing = current[upload.sessionId]
-            if (!existing) return current
-            return {
-              ...current,
-              [upload.sessionId]: uploadStateFromBackgroundProgress(upload.sessionId, progress, existing),
-            }
-          })
-        }),
+      if (inFlight) return
+      inFlight = true
+      const pollableUploads = Object.values(uploadsRef.current).filter(
+        (item) => item.jobIds.length && !item.done && !item.failed && !item.cancelled,
       )
+      try {
+        await Promise.allSettled(
+          pollableUploads.map(async (upload) => {
+            const progress = await getSessionBackgroundProgress(upload.sessionId)
+            if (cancelled || !progress) return
+            setUploadBySession((current) => {
+              const existing = current[upload.sessionId]
+              if (!existing || existing.done || existing.failed || existing.cancelled
+                || existing.startedAt !== upload.startedAt) return current
+              return {
+                ...current,
+                [upload.sessionId]: uploadStateFromBackgroundProgress(upload.sessionId, progress, existing),
+              }
+            })
+          }),
+        )
+      } finally {
+        inFlight = false
+      }
     }
 
     const timer = window.setInterval(() => {
@@ -1240,7 +1256,7 @@ export function DecisionChatFlow() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [uploadBySession])
+  }, [hasPollableUpload])
 
   async function ensureSession(seed?: string) {
     if (activeSessionId) return activeSessionId

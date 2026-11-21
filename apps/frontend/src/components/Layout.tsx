@@ -25,7 +25,8 @@ import {
   Wallet,
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { preloadPrimaryRoute } from '@/routeLoaders'
 import { useAlerts, type Alert } from '@/services/hooks'
 import { useTheme } from '@/hooks/useTheme'
 import ToolboxWidget from '@/components/ToolboxWidget'
@@ -212,6 +213,10 @@ function NavItem({ item, expanded }: { item: NavItemConfig; expanded: boolean })
     <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <NavLink
         to={item.to}
+        onFocus={() => preloadPrimaryRoute(item.to)}
+        onPointerEnter={(event) => {
+          if (event.pointerType === 'mouse') preloadPrimaryRoute(item.to)
+        }}
         aria-label={!expanded ? item.label : undefined}
         title={!expanded ? item.label : undefined}
         className={({ isActive }) => (isActive ? itemActive : itemIdle)}
@@ -404,7 +409,13 @@ export default function Layout() {
       </nav>
 
       <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto bg-background">
-        <Outlet />
+        <Suspense fallback={
+          <div role="status" className="flex min-h-[40vh] items-center justify-center text-xs text-muted-foreground">
+            加载页面…
+          </div>
+        }>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   )

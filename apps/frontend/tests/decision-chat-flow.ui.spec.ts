@@ -42,6 +42,91 @@ function emptyIngestionContext() {
 }
 
 test.describe('Decision chat main flow', () => {
+  test('verification requests scenario data only when its tab opens', async ({ page }) => {
+    const requests: string[] = []
+    await page.route('**/api/**', (route) => {
+      const pathname = new URL(route.request().url()).pathname
+      requests.push(pathname)
+      return route.fulfill({ json: [] })
+    })
+
+    await page.goto(`${baseUrl}/verification`)
+    const scenarioTab = page.getByRole('button', { name: '全链路验证', exact: true })
+    await expect(scenarioTab).toBeVisible()
+    const scenarioPath = '/api/v1/verification/scenarios'
+    expect(requests.filter(path => path === scenarioPath)).toHaveLength(0)
+    await scenarioTab.click()
+    await expect(page.getByText('已加载 0 个验证场景', { exact: true })).toBeVisible()
+    expect(requests.filter(path => path === scenarioPath)).toHaveLength(1)
+    await page.getByRole('button', { name: '终极检测', exact: true }).click()
+    await scenarioTab.click()
+    await expect(page.getByText('已加载 0 个验证场景', { exact: true })).toBeVisible()
+    expect(requests.filter(path => path === scenarioPath)).toHaveLength(1)
+  })
+
+  test('fund valuations reuse a fresh response after changing data center tabs', async ({ page }) => {
+    let estimateRequests = 0
+    await page.route('**/api/**', (route) => {
+      const pathname = new URL(route.request().url()).pathname
+      if (pathname === '/api/v1/fund/estimate') {
+        estimateRequests++
+        return route.fulfill({ json: { funds: [{
+          code: '110011', name: 'Synthetic Fund', nav_yesterday: 1, nav_estimated: 1.1,
+          change_pct: 10, estimate_time: '10:00',
+        }] } })
+      }
+      return route.fulfill({ json: [] })
+    })
+
+    await page.goto(`${baseUrl}/datahub`)
+    const estimateTab = page.getByRole('button', { name: '基金估值', exact: true })
+    await estimateTab.click()
+    await expect(page.getByText('Synthetic Fund', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: '数据源', exact: true }).click()
+    await estimateTab.click()
+    await expect(page.getByText('Synthetic Fund', { exact: true })).toBeVisible()
+    expect(estimateRequests).toBe(1)
+  })
+
+  test('knowledge views fetch on demand and reuse fresh data after navigation', async ({ page }) => {
+    const calls: string[] = []
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      const view = path.match(/\/knowledge\/(timeline|taxonomy|graph)$/)?.[1]
+      if (view) calls.push(view)
+      if (view === 'timeline') return route.fulfill({ json: { events: [] } })
+      if (view === 'taxonomy') return route.fulfill({
+        json: { taxonomy: {}, mapped_items: [], category_count: {}, subcategory_count: {} },
+      })
+      if (view === 'graph') return route.fulfill({ json: { nodes: [], links: [] } })
+      return route.fulfill({ json: path.endsWith('/chat/sessions') ? [] : {} })
+    })
+
+    const nav = page.getByRole('navigation', { name: '主导航' })
+    await page.goto(`${baseUrl}/knowledge`)
+    const openLibrary = page.getByRole('button', { name: '浏览资料库' })
+    const taxonomyTab = page.getByRole('button', { name: '分类体系' })
+    await expect(openLibrary).toBeVisible()
+    expect(calls).toEqual([])
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/knowledge/timeline')),
+      openLibrary.click(),
+    ])
+    expect(calls).toEqual(['timeline'])
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/knowledge/taxonomy')),
+      taxonomyTab.click(),
+    ])
+    expect(calls).toEqual(['timeline', 'taxonomy'])
+    await nav.getByRole('link', { name: '问答', exact: true }).click()
+    await expect(page.getByText('开始新的问答', { exact: true })).toBeVisible()
+    await nav.getByRole('link', { name: '资料', exact: true }).click()
+    await openLibrary.click()
+    await taxonomyTab.click()
+    await expect(page.locator('#main-content .animate-spin')).toHaveCount(0)
+    expect(calls).toEqual(['timeline', 'taxonomy'])
+  })
+
   test('serves local shell assets without external startup font dependencies', async ({ request }) => {
     const htmlResponse = await request.get(`${baseUrl}/chat`)
     expect(htmlResponse.ok()).toBeTruthy()

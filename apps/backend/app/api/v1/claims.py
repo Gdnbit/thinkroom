@@ -35,7 +35,7 @@ async def semantic_search_claims(
 
 
 @router.get("", response_model=ClaimSearchResponse)
-async def search_claims(
+def search_claims(
     q: Optional[str] = Query(None, description="搜索关键词"),
     asset: Optional[str] = Query(None, description="资产范围"),
     theme: Optional[str] = Query(None, description="主题范围"),

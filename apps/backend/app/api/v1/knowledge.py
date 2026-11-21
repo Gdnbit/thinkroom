@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, Query, BackgroundTasks
 from typing import Optional
 from datetime import datetime, timezone
 from pathlib import Path
+from collections import defaultdict
 import json
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 from sqlalchemy import func
 from loguru import logger
 
@@ -24,7 +25,7 @@ from app.utils.text_stats import build_source_status_payload
 router = APIRouter()
 
 
-def _is_system_source(source: RawSource) -> bool:
+def _is_system_source(source) -> bool:
     return is_system_source_record(
         source_id=source.id,
         title=source.title,
@@ -36,63 +37,54 @@ def _system_only_claim_ids(db: Session, claim_ids: list[str]) -> set[str]:
     if not claim_ids:
         return set()
 
-    linked_sources: dict[str, list[RawSource]] = {}
+    system_claims: set[str] = set()
+    user_claims: set[str] = set()
     rows = (
-        db.query(ClaimRawSourceLink.claim_id, RawSource)
+        db.query(ClaimRawSourceLink.claim_id, RawSource.id, RawSource.title, RawSource.storage_path)
         .join(RawSource, RawSource.id == ClaimRawSourceLink.source_id)
         .filter(ClaimRawSourceLink.claim_id.in_(claim_ids))
         .all()
     )
-    for claim_id, source in rows:
-        linked_sources.setdefault(claim_id, []).append(source)
-    return {
-        claim_id
-        for claim_id, sources in linked_sources.items()
-        if sources and all(_is_system_source(source) for source in sources)
-    }
+    for source in rows:
+        (system_claims if _is_system_source(source) else user_claims).add(source.claim_id)
+    return system_claims - user_claims
 
 
 @router.get("/stats")
 def get_kb_stats(db: Session = Depends(get_db)):
     """知识库全局统计"""
     # RawSource
-    src_total = db.query(func.count(RawSource.id)).scalar()
     src_by_status = dict(db.query(RawSource.status, func.count(RawSource.id)).group_by(RawSource.status).all())
     src_by_type = dict(db.query(RawSource.source_type, func.count(RawSource.id)).group_by(RawSource.source_type).all())
 
     # ClaimCard
-    claim_total = db.query(func.count(ClaimCard.id)).scalar()
     claim_by_status = dict(db.query(ClaimCard.status, func.count(ClaimCard.id)).group_by(ClaimCard.status).all())
     claim_by_stance = dict(db.query(ClaimCard.stance, func.count(ClaimCard.id)).group_by(ClaimCard.stance).all())
     claim_by_type = dict(db.query(ClaimCard.claim_type, func.count(ClaimCard.id)).group_by(ClaimCard.claim_type).all())
 
     # StrategyCard
-    strat_total = db.query(func.count(StrategyCard.id)).scalar()
     strat_by_type = dict(db.query(StrategyCard.strategy_type, func.count(StrategyCard.id)).group_by(StrategyCard.strategy_type).all())
 
     # SetupCard
-    setup_total = db.query(func.count(SetupCard.id)).scalar()
     setup_by_action = dict(db.query(SetupCard.recommended_action, func.count(SetupCard.id)).group_by(SetupCard.recommended_action).all())
 
     # BriefingCard
-    brief_total = db.query(func.count(BriefingCard.id)).scalar()
     brief_by_dir = dict(db.query(BriefingCard.direction, func.count(BriefingCard.id)).group_by(BriefingCard.direction).all())
 
     # EventCard
     event_total = db.query(func.count(EventCard.id)).scalar()
 
     # JobRun
-    job_total = db.query(func.count(JobRun.id)).scalar()
     job_by_status = dict(db.query(JobRun.status, func.count(JobRun.id)).group_by(JobRun.status).all())
 
     return {
-        "raw_sources": {"total": src_total, "by_status": src_by_status, "by_type": src_by_type},
-        "claims": {"total": claim_total, "by_status": claim_by_status, "by_stance": claim_by_stance, "by_type": claim_by_type},
-        "strategies": {"total": strat_total, "by_type": strat_by_type},
-        "setups": {"total": setup_total, "by_action": setup_by_action},
-        "briefings": {"total": brief_total, "by_direction": brief_by_dir},
+        "raw_sources": {"total": sum(src_by_status.values()), "by_status": src_by_status, "by_type": src_by_type},
+        "claims": {"total": sum(claim_by_status.values()), "by_status": claim_by_status, "by_stance": claim_by_stance, "by_type": claim_by_type},
+        "strategies": {"total": sum(strat_by_type.values()), "by_type": strat_by_type},
+        "setups": {"total": sum(setup_by_action.values()), "by_action": setup_by_action},
+        "briefings": {"total": sum(brief_by_dir.values()), "by_direction": brief_by_dir},
         "events": {"total": event_total},
-        "job_runs": {"total": job_total, "by_status": job_by_status},
+        "job_runs": {"total": sum(job_by_status.values()), "by_status": job_by_status},
     }
 
 
@@ -109,11 +101,22 @@ def list_sources(
     q = db.query(RawSource)
     if status: q = q.filter(RawSource.status == status)
     if source_type: q = q.filter(RawSource.source_type == source_type)
-    candidates = q.order_by(RawSource.created_at.desc()).all()
-    if not include_system:
-        candidates = [source for source in candidates if not _is_system_source(source)]
-    total = len(candidates)
-    items = candidates[offset: offset + limit]
+    q = q.order_by(RawSource.created_at.desc(), RawSource.id.desc())
+    if include_system:
+        total = q.order_by(None).count()
+        items = q.offset(offset).limit(limit).all()
+    else:
+        # The legacy visibility classifier needs just these three fields.
+        candidates = q.with_entities(RawSource.id, RawSource.title, RawSource.storage_path).yield_per(500)
+        total = 0
+        page_ids = []
+        for source in candidates:
+            if _is_system_source(source):
+                continue
+            if offset <= total < offset + limit:
+                page_ids.append(source.id)
+            total += 1
+        items = q.filter(RawSource.id.in_(page_ids)).all() if page_ids else []
     item_ids = [s.id for s in items]
     claim_counts = dict(
         db.query(ClaimRawSourceLink.source_id, func.count(ClaimRawSourceLink.claim_id))
@@ -208,12 +211,25 @@ def list_claims_kb(
     if status: q = q.filter(ClaimCard.status == status)
     if stance: q = q.filter(ClaimCard.stance == stance)
     if asset: q = q.filter(ClaimCard.asset_scope.contains([asset]))
-    candidates = q.order_by(ClaimCard.created_at.desc()).all()
-    if not include_system:
-        system_claim_ids = _system_only_claim_ids(db, [claim.id for claim in candidates])
-        candidates = [claim for claim in candidates if claim.id not in system_claim_ids]
-    total = len(candidates)
-    items = candidates[offset: offset + limit]
+    q = q.order_by(ClaimCard.created_at.desc(), ClaimCard.id.desc())
+    if include_system:
+        total = q.order_by(None).count()
+        items = q.offset(offset).limit(limit).all()
+    else:
+        # Bound each IN list for SQLite, and only load full models for the page.
+        candidate_ids = db.execute(q.with_entities(ClaimCard.id).statement.execution_options(yield_per=500))
+        total = 0
+        page_ids = []
+        for batch in candidate_ids.partitions(500):
+            ids = [row.id for row in batch]
+            system_claim_ids = _system_only_claim_ids(db, ids)
+            for claim_id in ids:
+                if claim_id in system_claim_ids:
+                    continue
+                if offset <= total < offset + limit:
+                    page_ids.append(claim_id)
+                total += 1
+        items = q.filter(ClaimCard.id.in_(page_ids)).all() if page_ids else []
     return {
         "total": total,
         "items": [{
@@ -589,6 +605,7 @@ def get_knowledge_timeline(
     days: int = Query(90, ge=7, le=365),
     limit: int = Query(400, ge=50, le=3000),
     db: Session = Depends(get_db),
+    include_by_date: bool = Query(True),
 ):
     """统一时间轴数据：来源/观点/简报/机会，支持日历与时间轴板块复用"""
     start_ts = datetime.now(timezone.utc).timestamp() - days * 86400
@@ -598,6 +615,8 @@ def get_knowledge_timeline(
 
     sources = (
         db.query(RawSource)
+        .options(load_only(RawSource.title, RawSource.created_at, RawSource.status,
+                           RawSource.theme_hint, RawSource.source_type, RawSource.word_count))
         .filter(RawSource.created_at >= start_dt)
         .order_by(RawSource.created_at.desc())
         .limit(limit)
@@ -618,6 +637,9 @@ def get_knowledge_timeline(
 
     claims = (
         db.query(ClaimCard)
+        .options(load_only(ClaimCard.summary, ClaimCard.created_at, ClaimCard.status,
+                           ClaimCard.asset_scope, ClaimCard.theme_scope, ClaimCard.stance,
+                           ClaimCard.claim_type, ClaimCard.confidence, ClaimCard.valid_until))
         .filter(ClaimCard.created_at >= start_dt)
         .order_by(ClaimCard.created_at.desc())
         .limit(limit)
@@ -655,6 +677,9 @@ def get_knowledge_timeline(
 
     briefings = (
         db.query(BriefingCard)
+        .options(load_only(BriefingCard.generated_at, BriefingCard.created_at, BriefingCard.title,
+                           BriefingCard.topic, BriefingCard.status, BriefingCard.asset_scope,
+                           BriefingCard.direction, BriefingCard.setup_quality, BriefingCard.recommended_action))
         .filter(BriefingCard.created_at >= start_dt)
         .order_by(BriefingCard.created_at.desc())
         .limit(limit)
@@ -680,6 +705,9 @@ def get_knowledge_timeline(
 
     setups = (
         db.query(SetupCard)
+        .options(load_only(SetupCard.evaluated_at, SetupCard.created_at, SetupCard.asset,
+                           SetupCard.recommended_action, SetupCard.status, SetupCard.direction,
+                           SetupCard.overall_score, SetupCard.strategy_fit_score))
         .filter(SetupCard.created_at >= start_dt)
         .order_by(SetupCard.created_at.desc())
         .limit(limit)
@@ -707,17 +735,17 @@ def get_knowledge_timeline(
     events = [e for e in events if e.get("ts")]
     events.sort(key=lambda x: x["ts"], reverse=True)
 
-    by_date: dict[str, list[dict]] = {}
-    for e in events:
-        d = e["date"]
-        by_date.setdefault(d, []).append(e)
-
-    return {
+    result = {
         "days": days,
         "total": len(events),
         "events": events,
-        "by_date": by_date,
     }
+    if include_by_date:
+        by_date: dict[str, list[dict]] = {}
+        for event in events:
+            by_date.setdefault(event["date"], []).append(event)
+        result["by_date"] = by_date
+    return result
 
 
 @router.get("/taxonomy")
@@ -726,7 +754,12 @@ def get_knowledge_taxonomy(
     db: Session = Depends(get_db),
 ):
     """金融知识分类树与映射结果（允许一条知识映射多个分类）"""
-    claims = db.query(ClaimCard).order_by(ClaimCard.created_at.desc()).limit(limit).all()
+    claims = (
+        db.query(ClaimCard)
+        .options(load_only(ClaimCard.summary, ClaimCard.stance, ClaimCard.status,
+                           ClaimCard.asset_scope, ClaimCard.theme_scope, ClaimCard.created_at))
+        .order_by(ClaimCard.created_at.desc()).limit(limit).all()
+    )
 
     mapped: list[dict] = []
     category_count: dict[str, int] = {}
@@ -771,7 +804,12 @@ def get_knowledge_graph(
 ):
     """知识图谱（有向）：事件/政策/结果/市场节点 + 传播关系"""
     import re
-    raw_claims = db.query(ClaimCard).order_by(ClaimCard.created_at.asc()).limit(limit).all()
+    raw_claims = (
+        db.query(ClaimCard)
+        .options(load_only(ClaimCard.summary, ClaimCard.claim_type, ClaimCard.status, ClaimCard.stance,
+                           ClaimCard.asset_scope, ClaimCard.theme_scope, ClaimCard.created_at, ClaimCard.confidence))
+        .order_by(ClaimCard.created_at.asc()).limit(limit).all()
+    )
 
     # ── Dedup: merge claims with near-identical summaries + same scope ──
     def _norm(s: str) -> str:
@@ -833,22 +871,23 @@ def get_knowledge_graph(
     # - 同资产/主题且时间先后 => follows
     # - policy -> outcome/market => causes
     # - 多事件共同指向结果 => co_drives（后续前端按入度识别）
-    for i in range(len(claims)):
-        ci = claims[i]
-        ai = set((ci.asset_scope or []))
-        ti = set((ci.theme_scope or []))
-        for j in range(i + 1, len(claims)):
+    assets = [set(c.asset_scope or []) for c in claims]
+    themes = [set(c.theme_scope or []) for c in claims]
+    scope_members: dict[tuple[str, str], list[int]] = defaultdict(list)
+    scope_keys = [{("asset", a) for a in ai} | {("theme", t) for t in ti} for ai, ti in zip(assets, themes)]
+    for i, keys in enumerate(scope_keys):
+        for key in keys:
+            scope_members[key].append(i)
+
+    for i, ci in enumerate(claims):
+        # Preserve the previous pair ordering and only visit pairs sharing scope.
+        candidates = {j for key in scope_keys[i] for j in scope_members[key] if j > i}
+        for j in sorted(candidates):
             cj = claims[j]
-            aj = set((cj.asset_scope or []))
-            tj = set((cj.theme_scope or []))
-
-            common_assets = sorted(list(ai.intersection(aj)))
-            common_themes = sorted(list(ti.intersection(tj)))
-            if not common_assets and not common_themes:
-                continue
-
-            type_i = infer_node_type(ci)
-            type_j = infer_node_type(cj)
+            common_assets = sorted(assets[i] & assets[j])
+            common_themes = sorted(themes[i] & themes[j])
+            type_i = nodes[i]["type"]
+            type_j = nodes[j]["type"]
 
             relation_type = "follows"
             if type_i == "policy" and type_j in {"outcome", "market"}:

@@ -296,6 +296,7 @@ def test_openrouter_long_image_is_bounded_ordered_and_reports_failed_slices(tmp_
     active = 0
     max_active = 0
     lock = threading.Lock()
+    workers_ready = threading.Barrier(3, timeout=10)
 
     def fake_vision(img, _settings, _prompt="", client=None, **_kwargs):
         nonlocal active, max_active
@@ -305,6 +306,7 @@ def test_openrouter_long_image_is_bounded_ordered_and_reports_failed_slices(tmp_
             active += 1
             max_active = max(max_active, active)
         try:
+            workers_ready.wait()
             time.sleep({1: 0.04, 2: 0.01, 3: 0.02}[ordinal])
             return None if ordinal == 2 else f"第{ordinal}段内容"
         finally:

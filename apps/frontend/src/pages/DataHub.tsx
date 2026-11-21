@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Database, RefreshCw, Search, TrendingUp, TrendingDown, Minus, Plus, X, BarChart3 } from 'lucide-react'
 import { clsx } from 'clsx'
 import api from '@/services/api'
@@ -31,14 +32,14 @@ const CAT_COLORS: Record<string, string> = {
 
 // ── Data Sources Tab ────────────────────────────────────
 function DataSourcesTab() {
-  const [sources, setSources] = useState<DataSource[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get('/api/v1/datasources/list').then(r => {
-      setSources(r.data?.sources ?? r.data ?? [])
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const { data: sources = [], isLoading: loading } = useQuery({
+    queryKey: ['datahub-sources'],
+    queryFn: async ({ signal }) => {
+      const { data } = await api.get<DataSource[] | { sources: DataSource[] }>('/api/v1/datasources/list', { signal })
+      return Array.isArray(data) ? data : data?.sources ?? []
+    },
+    retry: false,
+  })
 
   const byCategory: Record<string, DataSource[]> = {}
   sources.forEach(s => {
@@ -105,40 +106,36 @@ const DEFAULT_CODES = '110011,161725,003834,005827,320007,000961,001549'
 
 function FundValuationTab() {
   const [codes, setCodes] = useState(DEFAULT_CODES)
-  const [funds, setFunds] = useState<FundEstimate[]>([])
-  const [loading, setLoading] = useState(false)
-  const [lastFetch, setLastFetch] = useState('')
   const [searchKey, setSearchKey] = useState('')
   const [searchResults, setSearchResults] = useState<FundSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [selectedFund, setSelectedFund] = useState<{ code: string; name: string } | null>(null)
 
-  const fetchEstimates = useCallback(async () => {
-    if (!codes.trim()) return
-    setLoading(true)
-    try {
-      const r = await api.get('/api/v1/fund/estimate', { params: { codes } })
-      setFunds(r.data?.funds ?? [])
-      setLastFetch(new Date().toLocaleTimeString('zh-CN'))
-    } catch { /* ignore */ }
-    setLoading(false)
-  }, [codes])
-
-  useEffect(() => { fetchEstimates() }, [fetchEstimates])
-
-  // Auto-refresh every 2 minutes during trading hours
-  useEffect(() => {
-    const timer = setInterval(() => {
+  const estimates = useQuery({
+    queryKey: ['fund-estimates', codes],
+    queryFn: ({ signal }) => api.get<{ funds: FundEstimate[] }>('/api/v1/fund/estimate', {
+      signal, params: { codes },
+    }).then(response => response.data),
+    enabled: Boolean(codes.trim()),
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: () => {
       const now = new Date()
       const bjHour = (now.getUTCHours() + 8) % 24
       const bjMin = now.getUTCMinutes()
       const minutes = bjHour * 60 + bjMin
       // Trading hours: 9:30-11:30, 13:00-15:00 Beijing time
       const isTrading = (minutes >= 570 && minutes <= 690) || (minutes >= 780 && minutes <= 900)
-      if (isTrading) fetchEstimates()
-    }, 120000) // 2 min
-    return () => clearInterval(timer)
-  }, [fetchEstimates])
+      if (isTrading) return 120_000
+      const nextOpen = minutes < 570 ? 570 : minutes < 780 ? 780 : 1440 + 570
+      return (nextOpen - minutes) * 60_000
+    },
+  })
+  const funds = estimates.data?.funds ?? []
+  const loading = estimates.isFetching
+  const lastFetch = estimates.dataUpdatedAt ? new Date(estimates.dataUpdatedAt).toLocaleTimeString('zh-CN') : ''
 
   const doSearch = async () => {
     if (!searchKey.trim()) return
@@ -161,7 +158,6 @@ function FundValuationTab() {
 
   const removeFund = (code: string) => {
     setCodes(prev => prev.split(',').map(c => c.trim()).filter(c => c !== code).join(','))
-    setFunds(prev => prev.filter(f => f.code !== code))
   }
 
   return (
@@ -195,7 +191,7 @@ function FundValuationTab() {
           className="btn-outline !px-3 !py-1.5">
           {searching ? '搜索中...' : '搜索'}
         </button>
-        <button onClick={fetchEstimates} disabled={loading}
+        <button onClick={() => void estimates.refetch()} disabled={loading || !codes.trim()}
           className="btn-outline !px-3 !py-1.5 flex items-center gap-1.5">
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           刷新

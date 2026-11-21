@@ -49,26 +49,25 @@ def _parse_jsonp(text: str) -> Optional[dict]:
         return None
 
 
-async def _fetch_fund_estimate(code: str) -> Optional[dict]:
+async def _fetch_fund_estimate(client: httpx.AsyncClient, code: str) -> Optional[dict]:
     """获取单只基金的实时估值"""
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(
-                FUND_GZ_URL.format(code=code),
-                headers={"Referer": "https://fund.eastmoney.com/"},
-            )
-            resp.raise_for_status()
-            data = _parse_jsonp(resp.text)
-            if not data:
-                return None
-            return {
-                "code": data.get("fundcode", code),
-                "name": data.get("name", ""),
-                "nav_yesterday": float(data.get("dwjz", 0)),     # 昨日净值
-                "nav_estimated": float(data.get("gsz", 0)),       # 估算净值
-                "change_pct": float(data.get("gszzl", 0)),        # 估算涨跌幅 %
-                "estimate_time": data.get("gztime", ""),          # 估值时间
-            }
+        resp = await client.get(
+            FUND_GZ_URL.format(code=code),
+            headers={"Referer": "https://fund.eastmoney.com/"},
+        )
+        resp.raise_for_status()
+        data = _parse_jsonp(resp.text)
+        if not data:
+            return None
+        return {
+            "code": data.get("fundcode", code),
+            "name": data.get("name", ""),
+            "nav_yesterday": float(data.get("dwjz", 0)),     # 昨日净值
+            "nav_estimated": float(data.get("gsz", 0)),      # 估算净值
+            "change_pct": float(data.get("gszzl", 0)),       # 估算涨跌幅 %
+            "estimate_time": data.get("gztime", ""),         # 估值时间
+        }
     except Exception as e:
         logger.warning(f"Fund estimate fetch failed for {code}: {e}")
         return None
@@ -87,9 +86,12 @@ async def get_fund_estimates(
         return {"funds": [], "fetch_time": datetime.now(timezone.utc).isoformat()}
 
     import asyncio
-    tasks = [_fetch_fund_estimate(c) for c in code_list[:20]]  # 限制最多20只
-    results = await asyncio.gather(*tasks)
-    funds = [r for r in results if r is not None]
+    requested = code_list[:20]
+    unique_codes = list(dict.fromkeys(requested))
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        results = await asyncio.gather(*(_fetch_fund_estimate(client, code) for code in unique_codes))
+    by_code = dict(zip(unique_codes, results))
+    funds = [by_code[code] for code in requested if by_code[code] is not None]
 
     return {
         "funds": funds,

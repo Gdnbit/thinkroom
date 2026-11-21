@@ -73,7 +73,7 @@ def _check_source_duplicate(db: Session, content_hash: str, filename: str) -> Op
 
 
 @router.post("", response_model=UploadResponse)
-async def upload_files(
+def upload_files(
     files: List[UploadFile] = File(...),
     speaker_hint: Optional[str] = Form(None),
     theme_hint: Optional[str] = Form(None),
@@ -133,8 +133,8 @@ async def upload_files(
         image_payloads = []
 
         for idx, file in enumerate(image_files):
-            await file.seek(0)
-            content_bytes = await file.read()
+            file.file.seek(0)
+            content_bytes = file.file.read()
             if len(content_bytes) > MAX_FILE_SIZE:
                 raise HTTPException(status_code=400, detail=f"{file.filename} exceeds 20MB limit")
 
@@ -159,7 +159,7 @@ async def upload_files(
             files_to_process = non_image_files
         else:
             for payload in image_payloads:
-                await payload["file"].seek(0)
+                payload["file"].file.seek(0)
                 storage_path = storage.save(payload["file"], sub_dir="raw_sources")
 
                 attachments_info.append({
@@ -223,8 +223,8 @@ async def upload_files(
 
     # ── 独立处理模式（每个文件一个 RawSource，不做文字提取）──────────────
     for file in files_to_process:
-        await file.seek(0)
-        content_bytes = await file.read()
+        file.file.seek(0)
+        content_bytes = file.file.read()
         if len(content_bytes) > MAX_FILE_SIZE:
             raise HTTPException(status_code=400, detail=f"{file.filename} exceeds 20MB limit")
 
@@ -235,7 +235,7 @@ async def upload_files(
             created_ids.append(dup_source.id)
             continue  # 跳过重复文件，返回已有 source ID
 
-        await file.seek(0)
+        file.file.seek(0)
         storage_path = storage.save(file, sub_dir="raw_sources")
         suffix = Path(file.filename or "").suffix.lower()
         source_type = EXT_TO_SOURCE_TYPE.get(suffix, "note")

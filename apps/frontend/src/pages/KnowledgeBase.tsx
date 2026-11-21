@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import {
   RefreshCw,
@@ -23,6 +24,13 @@ import { uploadApi, type IngestionProgress, type IngestionStatus } from '@/servi
 
 const API = '/api/v1/knowledge'
 const GRAPH_LAYOUT_KEY = 'kb_graph_layout_v2'
+const EMPTY_TIMELINE: TimelineEvent[] = []
+
+async function readKnowledgeView<T>(path: string, signal: AbortSignal): Promise<T> {
+  const response = await fetch(`${API}/${path}`, { signal })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
 
 type BoardTab = 'calendar' | 'timeline' | 'taxonomy' | 'graph'
 
@@ -880,6 +888,7 @@ function GraphPanel({
     const links = (data?.links || [])
       .filter((l) => idSet.has(sid(l.source)) && idSet.has(sid(l.target)))
       .filter((l) => (relationFilter ? (l.relation || '').startsWith(relationFilter) : true))
+      .map((l) => ({ ...l, source: sid(l.source), target: sid(l.target) }))
 
     return { nodes, links }
   }, [data, relationFilter, clusterMode])
@@ -1501,14 +1510,9 @@ export default function KnowledgeBase() {
   const decisionSessionQuery = useCurrentDecisionSession()
   const decisionSession = decisionSessionQuery.data ?? currentDecisionSession
   const [tab, setTab] = useState<BoardTab>('calendar')
-  const [loading, setLoading] = useState(false)
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([])
-  const [taxonomy, setTaxonomy] = useState<TaxonomyResp | null>(null)
-  const [graph, setGraph] = useState<GraphResp | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set())
   const [relationFilter, setRelationFilter] = useState('')
   const [timelineFocusTs, setTimelineFocusTs] = useState<number | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [nodeMode, setNodeMode] = useState(false)
   const [uploadHighlight, setUploadHighlight] = useState('')
   const [selectedUploadId, setSelectedUploadId] = useState('')
@@ -1518,50 +1522,49 @@ export default function KnowledgeBase() {
   const [uploadTrust, setUploadTrust] = useState('')
   const [uploadNote, setUploadNote] = useState('')
   const [uploadSpeaker, setUploadSpeaker] = useState('')
-  const [showLibrary, setShowLibrary] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const claimId = searchParams.get('claim')
+  const [showLibrary, setShowLibrary] = useState(() => Boolean(claimId))
 
   const [assetFilter, setAssetFilter] = useState('')
   const [themeFilter, setThemeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [keyword, setKeyword] = useState('')
 
-  const load = async () => {
-    setLoading(true)
-    setErrorMsg(null)
-    try {
-      const [t, tx, g] = await Promise.all([
-        fetch(`${API}/timeline?days=365&limit=2200`).then((r) => r.json()),
-        fetch(`${API}/taxonomy?limit=2600`).then((r) => r.json()),
-        fetch(`${API}/graph?limit=600`).then((r) => r.json()),
-      ])
-      setTimeline(t.events || [])
-      setTaxonomy(tx)
-      setGraph(g)
-    } catch (e: any) {
-      setErrorMsg(String(e?.message || e))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const deferredKeyword = useDeferredValue(keyword).toLowerCase()
+  const queryClient = useQueryClient()
+  const timelineQuery = useQuery({
+    queryKey: ['knowledge-library', 'timeline'],
+    queryFn: ({ signal }) => readKnowledgeView<{ events: TimelineEvent[] }>('timeline?days=365&limit=2200&include_by_date=false', signal),
+    enabled: showLibrary || Boolean(claimId),
+  })
+  const taxonomyQuery = useQuery({
+    queryKey: ['knowledge-library', 'taxonomy'],
+    queryFn: ({ signal }) => readKnowledgeView<TaxonomyResp>('taxonomy?limit=2600', signal),
+    enabled: showLibrary && tab === 'taxonomy',
+  })
+  const graphQuery = useQuery({
+    queryKey: ['knowledge-library', 'graph'],
+    queryFn: ({ signal }) => readKnowledgeView<GraphResp>('graph?limit=600', signal),
+    enabled: showLibrary && tab === 'graph',
+  })
+  const timeline = timelineQuery.data?.events ?? EMPTY_TIMELINE
+  const taxonomy = taxonomyQuery.data ?? null
+  const graph = graphQuery.data ?? null
+  const viewQuery = tab === 'taxonomy' ? taxonomyQuery : tab === 'graph' ? graphQuery : timelineQuery
+  const loading = viewQuery.isFetching || timelineQuery.isFetching
+  const errorMsg = (viewQuery.error ?? timelineQuery.error)?.message
+  const load = () => queryClient.invalidateQueries({ queryKey: ['knowledge-library'] }, { cancelRefetch: false })
 
   useEffect(() => {
-    if (showLibrary && timeline.length === 0 && !loading) void load()
-  }, [showLibrary])
-
-  // ?claim=xxx URL 参数 → 聚焦对应 claim（来自 Chat citation 跳转）
-  const [searchParams, setSearchParams] = useSearchParams()
-  useEffect(() => {
-    const claimId = searchParams.get('claim')
-    if (!claimId) return
-    // 数据未就绪时不动作（等 load 完成后重新触发）
-    if (loading) return
-    if (timeline.length === 0 && !graph) return
+    if (!claimId || !timelineQuery.isSuccess) return
+    setShowLibrary(true)
     setSelectedNodeIds(new Set([claimId]))
     // 清理 URL 保留干净历史
     const next = new URLSearchParams(searchParams)
     next.delete('claim')
     setSearchParams(next, { replace: true })
-  }, [searchParams, loading, timeline.length, graph])
+  }, [claimId, searchParams, setSearchParams, timelineQuery.isSuccess])
 
   // 选中节点后，仅在非图谱Tab内自动定位到时间轴
   // 用 ref 读取当前 tab，避免 tab 切换本身触发跳转
@@ -1587,11 +1590,11 @@ export default function KnowledgeBase() {
       const okTheme = themeFilter ? (e.theme_scope || []).includes(themeFilter) : true
       const okStatus = statusFilter ? e.status === statusFilter : true
       const text = `${e.title} ${e.type}`.toLowerCase()
-      const okKw = keyword ? text.includes(keyword.toLowerCase()) : true
+      const okKw = !deferredKeyword || text.includes(deferredKeyword)
       const okUpload = selectedUploadId ? String((e.meta as any)?.source_id || '') === selectedUploadId : true
       return okAsset && okTheme && okStatus && okKw && okUpload
     })
-  }, [timeline, assetFilter, themeFilter, statusFilter, keyword, selectedUploadId])
+  }, [timeline, assetFilter, themeFilter, statusFilter, deferredKeyword, selectedUploadId])
 
   const filteredTaxonomy = useMemo(() => {
     if (!taxonomy) return null
@@ -1601,11 +1604,11 @@ export default function KnowledgeBase() {
         const okAsset = assetFilter ? (x.asset_scope || []).includes(assetFilter) : true
         const okTheme = themeFilter ? (x.theme_scope || []).includes(themeFilter) : true
         const okStatus = statusFilter ? x.status === statusFilter : true
-        const okKw = keyword ? x.summary.toLowerCase().includes(keyword.toLowerCase()) : true
+        const okKw = !deferredKeyword || x.summary.toLowerCase().includes(deferredKeyword)
         return okAsset && okTheme && okStatus && okKw
       }),
     }
-  }, [taxonomy, assetFilter, themeFilter, statusFilter, keyword])
+  }, [taxonomy, assetFilter, themeFilter, statusFilter, deferredKeyword])
 
   const filteredGraph = useMemo(() => {
     if (!graph) return null
@@ -1613,7 +1616,7 @@ export default function KnowledgeBase() {
       const okAsset = assetFilter ? (n.asset_scope || []).includes(assetFilter) : true
       const okTheme = themeFilter ? (n.theme_scope || []).includes(themeFilter) : true
       const okStatus = statusFilter ? n.status === statusFilter : true
-      const okKw = keyword ? n.label.toLowerCase().includes(keyword.toLowerCase()) : true
+      const okKw = !deferredKeyword || n.label.toLowerCase().includes(deferredKeyword)
       return okAsset && okTheme && okStatus && okKw
     })
     const idSet = new Set(nodes.map((n) => String(n.id)))
@@ -1621,7 +1624,7 @@ export default function KnowledgeBase() {
     const sid = (v: any) => String(v?.id ?? v)
     const links = graph.links.filter((l) => idSet.has(sid(l.source)) && idSet.has(sid(l.target)))
     return { nodes, links }
-  }, [graph, assetFilter, themeFilter, statusFilter, keyword])
+  }, [graph, assetFilter, themeFilter, statusFilter, deferredKeyword])
 
   const assets = useMemo(() => {
     const s = new Set<string>()
@@ -1905,7 +1908,7 @@ export default function KnowledgeBase() {
         <TabButton active={tab === 'graph'} label="知识图谱" icon={<Network size={13} />} onClick={() => setTab('graph')} />
       </div>
 
-      {loading && timeline.length === 0 ? (
+      {viewQuery.isLoading ? (
         <div className="flex justify-center py-16"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
       ) : (
         <>

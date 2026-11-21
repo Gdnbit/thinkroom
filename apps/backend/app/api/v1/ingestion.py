@@ -1,14 +1,16 @@
 """Ingestion 触发端点 — 异步后台处理"""
 from datetime import datetime, timezone
 
+from anyio import CapacityLimiter
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from ulid import ULID
 from app.dependencies import get_db
 from app.config import settings
 from app.workflows.ingestion_workflow import IngestionWorkflow
-from app.database import SessionLocal, safe_commit
+from app.database import SessionLocal, is_sqlite, safe_commit
 from app.schemas.job_run import JobRun
 from app.schemas.raw_source import RawSource
 from app.utils.text_stats import build_source_status_payload
@@ -22,6 +24,11 @@ from app.services.ingestion_dispatcher import (
 )
 
 router = APIRouter()
+# Direct jobs can check cancellation using a second database connection. Bound
+# admission before starting a worker or checking out a database connection.
+_direct_ingestion = CapacityLimiter(4)
+_direct_sqlite_ingestion = CapacityLimiter(1)
+_selected_queue_admission = CapacityLimiter(1)
 
 
 def _run_ingestion(source_id: str, job_id: str | None = None):
@@ -216,15 +223,25 @@ async def process_source(
     session_id: str | None = None,
     db: Session = Depends(get_db),
 ):
-    """触发单个 RawSource 的 Claim 抽取。默认同步返回结果；可切换后台异步。"""
+    if async_mode:
+        return await run_in_threadpool(_process_source, source_id, True, session_id, db)
+
+    limiter = _direct_sqlite_ingestion if is_sqlite() else _direct_ingestion
+    async with limiter:
+        return await run_in_threadpool(_process_source, source_id, False, session_id, db)
+
+
+def _process_source(source_id: str, async_mode: bool, session_id: str | None, db: Session) -> dict:
     workflow = IngestionWorkflow(db)
 
-    source = workflow.raw_source_repo.get(source_id)
+    if not async_mode and not is_sqlite():
+        # Preserve single processing per source when direct PostgreSQL requests overlap.
+        source = db.query(RawSource).filter(RawSource.id == source_id).with_for_update().first()
+    else:
+        source = workflow.raw_source_repo.get(source_id)
     if not source:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=f"Source {source_id} not found")
     if source.status not in ("pending", "failed"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=f"Source already {source.status}")
 
     if async_mode:
@@ -361,7 +378,7 @@ async def reap_stale_dispatcher_jobs(
 
 
 @router.get("/status/{source_id}")
-async def get_source_status(
+def get_source_status(
     source_id: str,
     db: Session = Depends(get_db),
 ):
@@ -389,7 +406,7 @@ async def get_source_status(
 
 
 @router.post("/status/batch")
-async def get_batch_status(
+def get_batch_status(
     source_ids: list[str],
     db: Session = Depends(get_db),
 ):
@@ -425,6 +442,12 @@ async def process_selected_sources(
     payload: dict,
     db: Session = Depends(get_db),
 ):
+    # Keep admission ordered while the database and dispatcher perform blocking I/O.
+    async with _selected_queue_admission:
+        return await run_in_threadpool(_queue_selected_sources, payload, db)
+
+
+def _queue_selected_sources(payload: dict, db: Session) -> dict:
     """Queue only explicitly selected RawSources for ingestion."""
     source_ids_raw = payload.get("source_ids") if isinstance(payload, dict) else None
     if not isinstance(source_ids_raw, list):

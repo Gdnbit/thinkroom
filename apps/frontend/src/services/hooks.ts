@@ -708,14 +708,21 @@ export interface ChatMsg {
 export function useChatSessions(requestedSessionId?: string | null) {
   return useQuery({
     queryKey: ['chat-sessions', { requestedSessionId: requestedSessionId ?? null }],
-    queryFn: () => api.get<ChatSession[]>('/api/v1/chat/sessions', {
+    queryFn: ({ signal }) => api.get<ChatSession[]>('/api/v1/chat/sessions', {
+      signal,
       params: requestedSessionId ? { requested_session_id: requestedSessionId } : undefined,
     }).then(r => r.data),
     refetchOnWindowFocus: false,
   })
 }
 export function useChatMessages(sessionId: string | null) {
-  return useQuery({ queryKey: ['chat-messages', sessionId], queryFn: () => sessionId ? api.get<ChatMsg[]>(`/api/v1/chat/sessions/${sessionId}/messages`).then(r => r.data) : Promise.resolve([]), enabled: !!sessionId })
+  return useQuery({
+    queryKey: ['chat-messages', sessionId],
+    queryFn: ({ signal }) => sessionId
+      ? api.get<ChatMsg[]>(`/api/v1/chat/sessions/${sessionId}/messages`, { signal }).then(r => r.data)
+      : Promise.resolve([]),
+    enabled: !!sessionId,
+  })
 }
 export function useCreateSession() {
   const qc = useQueryClient()

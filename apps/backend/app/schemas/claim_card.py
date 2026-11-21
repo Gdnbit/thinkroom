@@ -105,7 +105,7 @@ class ClaimRawSourceLink(Base, TimestampMixin):
         String(26), ForeignKey("claim_cards.id", ondelete="CASCADE"), primary_key=True
     )
     source_id: Mapped[str] = mapped_column(
-        String(26), ForeignKey("raw_sources.id", ondelete="CASCADE"), primary_key=True
+        String(26), ForeignKey("raw_sources.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     link_type: Mapped[str] = mapped_column(String(50), default="extracted_from", nullable=False)
 

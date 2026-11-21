@@ -118,6 +118,59 @@ def test_knowledge_lists_hide_system_only_records_by_default(client, db):
     assert all_claims["total"] == 2
 
 
+def test_knowledge_list_paginates_after_visibility_filter(client, db):
+    from datetime import timedelta
+    from app.schemas.claim_card import ClaimRawSourceLink
+    from app.schemas.raw_source import RawSource
+
+    now = datetime.now(timezone.utc)
+    sources = [
+        RawSource(id=str(ULID()), title=title, source_type="note", status="completed",
+                  created_at=now - timedelta(seconds=index))
+        for index, title in enumerate(["First document", "smoke document", "Second document"])
+    ]
+    claims = [_claim(str(ULID()), source.title, source.created_at) for source in sources]
+    db.add_all(sources + claims)
+    db.flush()
+    db.add_all([
+        ClaimRawSourceLink(claim_id=claim.id, source_id=source.id, link_type="primary")
+        for claim, source in zip(claims, sources)
+    ])
+    db.commit()
+
+    for endpoint, expected in (("sources", sources[2].id), ("claims", claims[2].id)):
+        response = client.get(f"/api/v1/knowledge/{endpoint}", params={"offset": 1, "limit": 1})
+        assert response.status_code == 200
+        assert response.json()["total"] == 2
+        assert [item["id"] for item in response.json()["items"]] == [expected]
+
+
+def test_knowledge_timeline_can_omit_duplicate_groups_and_graph_keeps_scoped_edges(client, db):
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    claims = [
+        _claim(str(ULID()), f"Distinct claim {index}", now + timedelta(seconds=index))
+        for index in range(3)
+    ]
+    claims[0].asset_scope = ["BTC"]
+    claims[1].asset_scope = ["BTC"]
+    claims[2].asset_scope = ["ETH"]
+    for claim in claims:
+        claim.theme_scope = []
+    db.add_all(claims)
+    db.commit()
+    full = client.get("/api/v1/knowledge/timeline").json()
+    lean = client.get("/api/v1/knowledge/timeline", params={"include_by_date": False}).json()
+    assert lean == {key: value for key, value in full.items() if key != "by_date"}
+    assert len(lean["events"]) >= 3
+    assert full["by_date"]
+    graph = client.get("/api/v1/knowledge/graph").json()
+    assert [(link["source"], link["target"], link["weight"]) for link in graph["links"]] == [
+        (claims[0].id, claims[1].id, 2),
+    ]
+
+
 def test_verification_writes_are_blocked_in_user_profile(client, monkeypatch):
     from app.config import settings
 

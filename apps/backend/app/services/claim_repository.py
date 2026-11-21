@@ -35,17 +35,25 @@ class ClaimRepository(BaseRepository[ClaimCard]):
                 )
             )
 
-        # 先取全部（不 limit），在 Python 端过滤 JSON 数组字段
-        all_items = query.order_by(ClaimCard.created_at.desc()).all()
+        ordered = query.order_by(ClaimCard.created_at.desc(), ClaimCard.id.desc())
+        if not asset and not theme:
+            return ordered.offset(skip).limit(limit).all(), query.count()
 
-        if asset:
-            all_items = [c for c in all_items if asset in (c.asset_scope or [])]
-        if theme:
-            all_items = [c for c in all_items if theme in (c.theme_scope or [])]
-
-        total = len(all_items)
-        items = all_items[skip: skip + limit]
-        return items, total
+        # Preserve exact JSON membership across databases and legacy rows.
+        # Scan lightweight candidates and load full records only for the page.
+        candidates = ordered.with_entities(ClaimCard.id, ClaimCard.asset_scope, ClaimCard.theme_scope)
+        total = 0
+        page_ids = []
+        for row in candidates.yield_per(500):
+            if asset and asset not in (row.asset_scope or []):
+                continue
+            if theme and theme not in (row.theme_scope or []):
+                continue
+            if skip <= total < skip + limit:
+                page_ids.append(row.id)
+            total += 1
+        page = ordered.filter(ClaimCard.id.in_(page_ids)).all() if page_ids else []
+        return page, total
 
     def get_active_by_asset(self, asset: str) -> List[ClaimCard]:
         all_active = (

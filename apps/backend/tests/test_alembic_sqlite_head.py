@@ -54,13 +54,17 @@ def test_alembic_upgrade_head_sqlite_creates_required_indexes(tmp_path):
     current = _run_alembic(db_path, "current", timeout=30)
     current_out = (current.stdout or "") + (current.stderr or "")
     assert current.returncode == 0, f"alembic current failed:\n{current_out}"
-    assert "0021_job_run_session_index" in current_out
+    assert "0022_claim_source_lookup" in current_out
 
     with sqlite3.connect(db_path) as conn:
         snapshot_indexes = conn.execute("PRAGMA index_list('decision_snapshots')").fetchall()
         trace_indexes = conn.execute("PRAGMA index_list('decision_trace_events')").fetchall()
         trace_link_indexes = conn.execute("PRAGMA index_list('decision_trace_source_links')").fetchall()
         trace_review_indexes = conn.execute("PRAGMA index_list('decision_trace_eval_reviews')").fetchall()
+        source_lookup_plan = conn.execute(
+            "EXPLAIN QUERY PLAN SELECT claim_id FROM claim_raw_source_links WHERE source_id = ?",
+            ("synthetic-source-id",),
+        ).fetchall()
         trace_link_table = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='decision_trace_source_links'"
         ).fetchone()
@@ -84,6 +88,7 @@ def test_alembic_upgrade_head_sqlite_creates_required_indexes(tmp_path):
     trace_review_index_names = {row[1] for row in trace_review_indexes}
     assert "idx_decision_trace_eval_reviews_status_updated" in trace_review_index_names
     assert "ix_decision_trace_eval_reviews_candidate_id" in trace_review_index_names
+    assert any("ix_claim_raw_source_links_source_id" in row[3] for row in source_lookup_plan)
 
 
 def test_alembic_upgrade_head_sqlite_contains_every_orm_table_and_column(tmp_path):
@@ -141,7 +146,7 @@ def test_job_run_scope_migration_accepts_columns_from_legacy_auto_repair(tmp_pat
         revision = conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
 
     assert {"session_id", "source_ids", "object_scope"}.issubset(columns)
-    assert revision == "0021_job_run_session_index"
+    assert revision == "0022_claim_source_lookup"
 
 
 def test_job_run_session_index_upgrade_downgrade_and_legacy_index(tmp_path):
