@@ -97,8 +97,10 @@ type GraphResp = {
 function TabButton({ active, label, onClick, icon }: { active: boolean; label: string; onClick: () => void; icon: React.ReactNode }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono border-b-2 -mb-px transition-colors ${
+      className={`flex min-h-10 items-center gap-1.5 px-3 py-2 text-sm border-b-2 -mb-px transition-colors ${
         active ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
       }`}
     >
@@ -1676,10 +1678,10 @@ export default function KnowledgeBase() {
   const sessionReady = decisionSession.files.length > 0 && completedStages === decisionSession.ingestionStages.length
 
   return (
-    <div className="mx-auto max-w-[1200px] flex-1 overflow-auto p-6 2xl:p-8">
-      <div className="page-header !mb-5 !pb-4">
+    <div className="workspace-page workspace-page--reading">
+      <div className="page-header">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">资料</h1>
+          <h1 className="workspace-heading tracking-tight text-foreground">资料</h1>
           <Link to="/chat" className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-xs font-medium text-foreground hover:border-primary/40">返回问答</Link>
         </div>
       </div>
@@ -1874,37 +1876,30 @@ export default function KnowledgeBase() {
       {errorMsg && <div className="mb-3 text-xs text-red-400 border border-red-400/30 rounded p-2">加载失败：{errorMsg}</div>}
 
       {/* ── 筛选区 Filters ── */}
-      <div className="zone-header">
-        <span className="zone-eyebrow">Filters</span>
-        <h2 className="zone-title">筛选</h2>
-      </div>
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <select value={assetFilter} onChange={(e) => setAssetFilter(e.target.value)} className="bg-secondary border border-border rounded px-2 py-1.5 text-xs min-w-[100px]">
+      <fieldset className="mb-4 grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-[minmax(10rem,1fr)_repeat(3,minmax(0,0.7fr))_auto]">
+        <legend className="sr-only">资料筛选</legend>
+        <input value={keyword} onChange={(e) => setKeyword(e.target.value)} aria-label="搜索资料" placeholder="搜索资料…" className="field-control" />
+        <select aria-label="资产" value={assetFilter} onChange={(e) => setAssetFilter(e.target.value)} className="field-control">
           <option value="">全部资产</option>
           {assets.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <select value={themeFilter} onChange={(e) => setThemeFilter(e.target.value)} className="bg-secondary border border-border rounded px-2 py-1.5 text-xs min-w-[100px]">
+        <select aria-label="主题" value={themeFilter} onChange={(e) => setThemeFilter(e.target.value)} className="field-control">
           <option value="">全部主题</option>
           {themes.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-secondary border border-border rounded px-2 py-1.5 text-xs min-w-[100px]">
+        <select aria-label="状态" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="field-control">
           <option value="">全部状态</option>
-          <option value="active">active</option>
-          <option value="expired">expired</option>
-          <option value="invalidated">invalidated</option>
-          <option value="pending">pending</option>
-          <option value="completed">completed</option>
+          <option value="active">有效</option>
+          <option value="expired">已过期</option>
+          <option value="invalidated">已失效</option>
+          <option value="pending">待处理</option>
+          <option value="completed">已完成</option>
         </select>
-        <input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="关键词搜索…" className="bg-secondary border border-border rounded px-2 py-1.5 text-xs w-40" />
-        <button className="ml-auto bg-secondary border border-border rounded px-3 py-1.5 text-xs hover:bg-border transition-colors" onClick={() => { setAssetFilter(''); setThemeFilter(''); setStatusFilter(''); setKeyword(''); setRelationFilter(''); setNodeMode(false) }}>清空筛选</button>
-      </div>
+        <button type="button" className="btn-outline" onClick={() => { setAssetFilter(''); setThemeFilter(''); setStatusFilter(''); setKeyword(''); setRelationFilter(''); setNodeMode(false) }}>清空筛选</button>
+      </fieldset>
 
       {/* ── 视图区 Views ── */}
-      <div className="zone-header mt-6">
-        <span className="zone-eyebrow">Views</span>
-        <h2 className="zone-title">视图</h2>
-      </div>
-      <div className="flex gap-1 mb-6 border-b border-border">
+      <div role="group" aria-label="资料视图" className="mb-5 flex flex-wrap gap-1 border-b border-border">
         <TabButton active={tab === 'calendar'} label="日历" icon={<CalendarDays size={13} />} onClick={() => setTab('calendar')} />
         <TabButton active={tab === 'timeline'} label="时间线" icon={<Clock3 size={13} />} onClick={() => setTab('timeline')} />
         <TabButton active={tab === 'taxonomy'} label="分类体系" icon={<GitBranch size={13} />} onClick={() => setTab('taxonomy')} />

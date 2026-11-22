@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { CheckCircle2, ChevronRight, Clock3, Loader2, RefreshCw } from 'lucide-react'
 import { clsx } from 'clsx'
 import ReplayDrawer from '@/components/ReplayDrawer'
+import { EmptyState, ErrorState, LoadingRows } from '@/components/ui'
 import { useReplaySnapshots, type ReplaySnapshot } from '@/services/hooks'
 
 type ReviewFilter = 'all' | 'pending' | 'completed'
@@ -57,9 +58,9 @@ export default function Review() {
   })
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-5 p-6 2xl:p-8">
+    <div className="workspace-page workspace-page--reading space-y-5">
       <header className="flex items-center justify-between gap-3 border-b border-border pb-4">
-        <h1 className="text-xl font-semibold text-foreground">复盘</h1>
+        <h1 className="workspace-heading text-foreground">复盘</h1>
         <button type="button" onClick={() => void snapshotsQuery.refetch()} className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground" aria-label="刷新复盘记录" title="刷新">
           {snapshotsQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
         </button>
@@ -76,12 +77,17 @@ export default function Review() {
       )}
 
       {snapshotsQuery.isLoading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />正在读取记录</div>
+        <LoadingRows rows={3} />
+      ) : snapshotsQuery.isError && records.length === 0 ? (
+        <ErrorState message="复盘记录读取失败" onRetry={() => void snapshotsQuery.refetch()} />
       ) : visibleRecords.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-6 py-14 text-center">
-          <p className="text-sm font-medium text-foreground">{records.length === 0 ? '还没有已保存的判断' : '当前筛选下没有记录'}</p>
-          {records.length === 0 && <Link to="/chat" className="mt-3 inline-flex rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">去问答并保存判断</Link>}
-        </div>
+        <EmptyState
+          icon={Clock3}
+          title={records.length === 0 ? '暂无保存的判断' : '当前筛选下没有记录'}
+          action={records.length === 0
+            ? <Link to="/chat" className="btn-primary">去问答并保存判断</Link>
+            : <button type="button" className="btn-outline" onClick={() => setFilter('all')}>显示全部记录</button>}
+        />
       ) : (
         <section className="overflow-hidden rounded-lg border border-border bg-card">
           {visibleRecords.map((snapshot) => {
@@ -92,10 +98,10 @@ export default function Review() {
                   {hasOutcome ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">{snapshot.question || `${snapshot.asset || '未命名'}判断`}</span>
+                  <span className="block break-words text-sm font-medium text-foreground">{snapshot.question || `${snapshot.asset || '未命名'}判断`}</span>
                   <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{formatTime(snapshot.snapshot_at)}</span><span>{originLabel(snapshot)}</span><span>{directionLabel(snapshot.final_direction)}</span></span>
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">{hasOutcome ? '查看结果' : '记录结果'}</span>
+                <span className="shrink-0 text-xs font-medium text-primary">{hasOutcome ? '查看结果' : '记录结果'}</span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
             )
@@ -103,7 +109,7 @@ export default function Review() {
         </section>
       )}
 
-      {snapshotsQuery.isError && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">复盘记录读取失败，请稍后刷新。</div>}
+      {snapshotsQuery.isError && records.length > 0 && <p role="alert" className="status-error text-sm">刷新失败，当前显示已有记录。</p>}
       {selected && <ReplayDrawer snapshot={selected} onClose={() => setSelected(null)} />}
     </div>
   )

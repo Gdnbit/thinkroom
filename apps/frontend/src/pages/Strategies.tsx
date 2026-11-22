@@ -302,12 +302,11 @@ export default function Strategies() {
   })
 
   return (
-    <div className="p-6 2xl:p-8 max-w-[900px] 2xl:max-w-[1100px] mx-auto space-y-6">
+    <div className="workspace-page workspace-page--reading space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between page-header !mb-5 !pb-4">
+      <div className="flex items-start justify-between page-header">
         <div>
-          <span className="section-label">Strategies</span>
-          <h1 className="text-2xl font-semibold text-foreground">策略候选库</h1>
+          <h1 className="workspace-heading text-foreground">策略候选库</h1>
           <p className="text-sm text-muted-foreground mt-1">管理与评估待确认的策略模板，避免把自动蒸馏结果直接视为正式决策</p>
         </div>
         <button

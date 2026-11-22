@@ -533,28 +533,26 @@ export default function Verification() {
   }, [runAllResult, runAllDetails, suiteResult, progressLog, globalError])
 
   return (
-    <div className="px-5 sm:px-8 2xl:px-10 py-10 2xl:py-14 max-w-[1400px] 2xl:max-w-[1760px] mx-auto space-y-6">
+    <div className="workspace-page space-y-6">
       {/* ── Page Header ── */}
-      <div className="page-header !mb-5 !pb-4">
-        <span className="section-label">Verification</span>
-        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+      <div className="page-header">
+        <h1 className="workspace-heading text-foreground flex items-center gap-2">
           <FlaskConical size={20} className="text-primary" />
           验证中心
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">系统功能验证：全链路场景测试 · API 接口面板 · 系统运行状态</p>
       </div>
 
       {/* ── Tab Navigation ── */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/50 border border-border">
+        <div role="group" aria-label="验证面板" className="flex min-w-0 flex-wrap items-center gap-1 rounded-xl border border-border bg-card p-1">
           {TABS.map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.key
             return (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
-                  active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-secondary')}>
-                <Icon size={12} />{tab.label}
+              <button key={tab.key} type="button" aria-pressed={active} onClick={() => setActiveTab(tab.key)}
+                className={clsx('flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors',
+                  active ? 'bg-primary/12 font-semibold text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary')}>
+                <Icon size={12} aria-hidden="true" />{tab.label}
               </button>
             )
           })}
@@ -641,7 +639,10 @@ export default function Verification() {
                             className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground">
                             <Eye size={12} />
                           </button>
-                          <button onClick={e => { e.stopPropagation(); deleteHistory(rec.id); refreshHistory() }}
+                          <button aria-label="删除这条测试记录" onClick={e => {
+                            e.stopPropagation()
+                            if (window.confirm('永久删除这条测试记录？')) { deleteHistory(rec.id); refreshHistory() }
+                          }}
                             className="p-1 rounded hover:bg-red-400/10 text-muted-foreground hover:text-red-400">
                             <Trash2 size={12} />
                           </button>

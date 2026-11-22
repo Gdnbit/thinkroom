@@ -111,14 +111,12 @@ export default function DataFlowPage() {
   const activeNodeData = allNodes.find(n => n.id === activeNode)
 
   return (
-    <div className="p-6 2xl:p-8 max-w-[1400px] 2xl:max-w-[1760px] mx-auto space-y-5">
-      <div className="page-header !mb-5 !pb-4">
-        <span className="section-label">Data Flow</span>
-        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+    <div className="workspace-page space-y-5">
+      <div className="page-header">
+        <h1 className="workspace-heading text-foreground flex items-center gap-2">
           <GitBranch size={20} className="text-primary" />
           数据流诊断
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">系统完整数据处理管道 — 从上传到输出的全链路节点与数据流转</p>
       </div>
 
       <div className="flex items-center gap-5 flex-wrap">

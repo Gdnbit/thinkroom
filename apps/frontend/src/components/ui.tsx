@@ -22,8 +22,10 @@ export function EmptyState({
   action?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 border border-dashed border-border rounded-xl text-center">
-      <Icon size={32} className="text-muted-foreground/40 mb-3" />
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-5 py-12 text-center">
+      <span className="mb-3 grid h-10 w-10 place-items-center rounded-lg bg-secondary text-muted-foreground">
+        <Icon size={20} aria-hidden="true" />
+      </span>
       <p className="text-sm font-medium text-foreground mb-1">{title}</p>
       {description && <p className="text-xs text-muted-foreground max-w-xs">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
@@ -40,12 +42,11 @@ export function ErrorState({
   onRetry?: () => void
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-6 border border-red-400/20 bg-red-400/5 rounded-xl text-center">
-      <AlertTriangle size={28} className="text-red-400 mb-3" />
-      <p className="text-sm text-red-400 mb-3">{message}</p>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-5 py-10 text-center">
+      <AlertTriangle size={20} className="status-error mb-3" aria-hidden="true" />
+      <p className="status-error mb-3 text-sm" role="alert">{message}</p>
       {onRetry && (
-        <button onClick={onRetry}
-          className="text-xs text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:text-foreground hover:border-primary transition-colors">
+        <button type="button" onClick={onRetry} className="btn-outline">
           重试
         </button>
       )}
@@ -56,9 +57,9 @@ export function ErrorState({
 // ── LoadingRows ───────────────────────────────────────────
 export function LoadingRows({ rows = 4, className }: { rows?: number; className?: string }) {
   return (
-    <div className={clsx('space-y-2 animate-pulse', className)}>
+    <div role="status" aria-label="加载中" className={clsx('space-y-2 animate-pulse', className)}>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-16 bg-secondary rounded-xl" style={{ opacity: 1 - i * 0.15 }} />
+        <div key={i} aria-hidden="true" className="h-14 rounded-lg bg-secondary" />
       ))}
     </div>
   )
@@ -67,7 +68,7 @@ export function LoadingRows({ rows = 4, className }: { rows?: number; className?
 // ── InlineLoader ──────────────────────────────────────────
 export function InlineLoader({ text = '加载中…' }: { text?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
+    <div role="status" className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
       <Loader2 size={14} className="animate-spin" />{text}
     </div>
   )
@@ -89,12 +90,14 @@ export function Pagination({
   if (totalPages <= 1) return null
 
   return (
-    <div className="flex items-center justify-between pt-3 border-t border-border">
+    <nav aria-label="分页" className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
       <p className="text-xs text-muted-foreground">
         共 {total} 条，第 {page}/{totalPages} 页
       </p>
       <div className="flex items-center gap-1">
         <button
+          type="button"
+          aria-label="上一页"
           onClick={() => onChange(page - 1)}
           disabled={page <= 1}
           className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted-foreground disabled:opacity-40 hover:text-foreground hover:border-primary transition-colors">
@@ -107,7 +110,7 @@ export function Pagination({
           else if (page >= totalPages - 2) { p = totalPages - 4 + i }
           else { p = page - 2 + i }
           return (
-            <button key={p} onClick={() => onChange(p)}
+            <button key={p} type="button" aria-label={`第 ${p} 页`} aria-current={p === page ? 'page' : undefined} onClick={() => onChange(p)}
               className={clsx(
                 'w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-colors',
                 p === page
@@ -119,13 +122,15 @@ export function Pagination({
           )
         })}
         <button
+          type="button"
+          aria-label="下一页"
           onClick={() => onChange(page + 1)}
           disabled={page >= totalPages}
           className="w-7 h-7 flex items-center justify-center rounded-lg border border-border text-muted-foreground disabled:opacity-40 hover:text-foreground hover:border-primary transition-colors">
           <ChevronRight size={13} />
         </button>
       </div>
-    </div>
+    </nav>
   )
 }
 

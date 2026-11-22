@@ -294,11 +294,10 @@ export default function IngestionAudit() {
   const types = [...new Set(report?.sources.map(s => s.source_type) || [])]
 
   return (
-    <div className="p-6 2xl:p-8 max-w-[1400px] 2xl:max-w-[1760px] mx-auto space-y-6">
+    <div className="workspace-page space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-foreground">Ingestion 审计</h1>
-        <p className="text-sm text-muted-foreground mt-1">对比原始文件与处理结果，检查信息完整性和提取质量</p>
+        <h1 className="workspace-heading text-foreground">证据审计</h1>
       </div>
 
       <DecisionSessionStepPanel step="audit" session={decisionSession} />

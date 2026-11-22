@@ -4,6 +4,7 @@ import {
   CheckCircle2, XCircle, BarChart3, Eye, Loader2, Send,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import WorkspaceDialog from '@/components/WorkspaceDialog'
 import {
   useReplayDetail, useAnnotateOutcome, useReplayAnalysis,
   type ReplaySnapshot,
@@ -69,12 +70,8 @@ export default function ReplayDrawer({ snapshot, onClose }: Props) {
   const sb = STATUS_BADGE[snapshot.replay_status] ?? STATUS_BADGE.pending
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
-      {/* drawer */}
-      <div className="relative w-[480px] max-w-full bg-background border-l border-border flex flex-col h-full overflow-hidden">
+    <WorkspaceDialog title="复盘详情" onClose={onClose} drawer>
+      <div className="flex h-full flex-col overflow-hidden">
         {/* header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
@@ -82,7 +79,7 @@ export default function ReplayDrawer({ snapshot, onClose }: Props) {
             <h3 className="text-sm font-semibold text-foreground">复盘详情</h3>
             <span className={clsx('text-[10px] border rounded px-1.5 py-0.5 font-medium', sb.cls)}>{sb.label}</span>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="关闭复盘详情" title="关闭"><X size={16} /></button>
+          <button type="button" onClick={onClose} className="icon-button" aria-label="关闭复盘详情"><X size={16} aria-hidden="true" /></button>
         </div>
 
         {/* content */}
@@ -163,6 +160,8 @@ export default function ReplayDrawer({ snapshot, onClose }: Props) {
                       {['bullish', 'neutral', 'bearish'].map(d => (
                         <button
                           key={d}
+                          type="button"
+                          aria-pressed={outcomeDir === d}
                           onClick={() => setOutcomeDir(d)}
                           className={clsx('text-[11px] px-2.5 py-1 rounded border transition-colors',
                             outcomeDir === d ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/30'
@@ -176,6 +175,7 @@ export default function ReplayDrawer({ snapshot, onClose }: Props) {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
+                          aria-label="盈亏百分比（可选）"
                           step="0.1"
                           value={outcomePnl}
                           onChange={e => setOutcomePnl(e.target.value)}
@@ -185,7 +185,7 @@ export default function ReplayDrawer({ snapshot, onClose }: Props) {
                         <button
                           onClick={handleAnnotate}
                           disabled={annotateMut.isPending}
-                          className="text-[11px] px-3 py-1 rounded bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors disabled:opacity-50"
+                          className="btn-primary disabled:opacity-50"
                         >
                           {annotateMut.isPending ? '保存中…' : '保存结果'}
                         </button>
@@ -248,6 +248,6 @@ export default function ReplayDrawer({ snapshot, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </WorkspaceDialog>
   )
 }

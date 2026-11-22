@@ -95,6 +95,37 @@ test.describe('Decision chat main flow', () => {
     await expect(page.getByRole('link', { name: '去问答并保存判断' })).toBeVisible()
     await page.getByRole('link', { name: '去问答并保存判断' }).click()
     await expect(page.getByRole('button', { name: '上传资料', exact: true })).toBeVisible()
+
+    const more = nav.getByRole('button', { name: '更多功能' })
+    await more.click()
+    const menu = page.getByRole('dialog', { name: '更多功能' })
+    await expect(menu.getByRole('link', { name: '系统设置' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    await expect(more).toBeFocused()
+    await more.press('Enter')
+    await menu.getByRole('link', { name: '观察池' }).click()
+    await expect(menu).toBeHidden()
+    await expect(page.getByRole('heading', { name: '观察池' })).toBeVisible()
+    await page.getByRole('button', { name: '新建观察列表' }).click()
+    await expect(page.getByRole('textbox', { name: '列表名称' })).toBeEditable()
+  })
+
+  test('keeps fund setup inside an accessible modal', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      return route.fulfill({ json: path === '/api/v1/alerts' ? { alerts: [], total: 0 } : [] })
+    })
+    await page.goto(`${baseUrl}/fund-profiles`)
+    const create = page.getByRole('button', { name: '新增基金' })
+    await create.click()
+    const dialog = page.getByRole('dialog', { name: '新增基金' })
+    await expect(dialog.getByRole('textbox', { name: /基金代码/ })).toBeEditable()
+    await expect(dialog.getByRole('combobox', { name: '市场' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(create).toBeFocused()
   })
 
   test('verification requests scenario data only when its tab opens', async ({ page }) => {

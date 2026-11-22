@@ -489,8 +489,8 @@ function EvidencePanel({
         <span className={clsx(
           'rounded border px-1.5 py-0.5 text-[11px]',
           isDecisionReady
-            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-            : 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+            ? 'status-success border-emerald-500/30 bg-emerald-500/10'
+            : 'status-warning border-amber-500/30 bg-amber-500/10',
         )}>
           {isDecisionReady ? '可作为参考' : '需复核'}
         </span>
@@ -1661,9 +1661,9 @@ export function DecisionChatFlow() {
 
   return (
     <div className="decision-chat-flow flex h-full min-h-0 flex-col bg-background text-foreground">
-      <header className="shrink-0 border-b border-border bg-card/95 px-4 py-2 backdrop-blur">
+      <header className="shrink-0 border-b border-border bg-card px-4 py-3 sm:px-6">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-base font-semibold text-foreground">问答</h1>
+          <h1 className="text-lg font-semibold text-foreground">问答</h1>
           <Link to="/knowledge" className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">
             <BookOpen className="h-3.5 w-3.5" />
             {sourceIds.length ? `${sourceIds.length} 份资料` : '资料'}
@@ -1671,14 +1671,14 @@ export function DecisionChatFlow() {
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 bg-background xl:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="hidden min-h-0 border-border bg-secondary/40 p-3 xl:block xl:border-r">
+      <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[15rem_minmax(0,1fr)]">
+        <aside aria-label="对话历史" className="hidden min-h-0 flex-col border-r border-border bg-card p-4 xl:flex">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-foreground">对话</h2>
             <button
               type="button"
               onClick={() => void handleNewSession()}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:border-amber-400 hover:text-amber-400 disabled:opacity-50"
+              className="icon-button disabled:opacity-50"
               disabled={createSession.isPending}
               aria-label="新建会话"
               title="新建会话"
@@ -1687,7 +1687,7 @@ export function DecisionChatFlow() {
             </button>
           </div>
 
-          <div className="mt-3 max-h-[calc(100vh-210px)] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto p-1">
             {sessionsLoading && (
               <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1705,10 +1705,10 @@ export function DecisionChatFlow() {
                 <div
                   key={session.id}
                   className={clsx(
-                    'group relative rounded-lg border bg-card shadow-sm transition',
+                    'group relative rounded-lg border transition-colors',
                     active
-                      ? 'border-amber-500/60 bg-amber-500/10 ring-1 ring-amber-500/20'
-                      : 'border-border hover:border-amber-500/30',
+                      ? 'border-primary/25 bg-primary/10'
+                      : 'border-transparent hover:bg-secondary',
                   )}
                 >
                   <button
@@ -1723,7 +1723,7 @@ export function DecisionChatFlow() {
                   <button
                     type="button"
                     onClick={() => void handleDeleteSession(session.id)}
-                    className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-red-500/10 hover:text-red-300 group-hover:opacity-100 focus:opacity-100"
+                    className="absolute right-1 top-1 icon-button hover:text-[hsl(var(--status-error))]"
                     title="删除对话"
                     aria-label={`删除对话：${sessionTitle(session)}`}
                     disabled={deleteSession.isPending}
@@ -1739,11 +1739,11 @@ export function DecisionChatFlow() {
         <section
           ref={conversationRef}
           data-testid="decision-chat-conversation"
-          className="flex min-h-0 flex-col"
+          className="flex min-h-0 min-w-0 flex-col"
           onDragOver={(event) => event.preventDefault()}
           onDrop={handleDrop}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-5 py-2.5">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-1.5 sm:px-6">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-foreground">
                 {activeSession && sessionTitle(activeSession)}
@@ -1768,7 +1768,8 @@ export function DecisionChatFlow() {
                   void refetchMessages()
                   setSourceIds(activeSessionId ? getStoredSessionSourceIds(activeSessionId) : [])
                 }}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-secondary text-muted-foreground hover:border-amber-400 hover:text-amber-400"
+                className="icon-button"
+                aria-label="刷新对话"
                 title="刷新"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -1818,7 +1819,6 @@ export function DecisionChatFlow() {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className="truncate text-sm font-medium text-foreground">{sessionTitle(session)}</span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground">{session.message_count ?? 0} 条</span>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">{formatTime(session.updated_at)}</div>
                     </button>
@@ -1828,7 +1828,7 @@ export function DecisionChatFlow() {
             </div>
           )}
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-4 xl:px-8">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
             {messagesLoading && activeSessionId && (
               <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1836,7 +1836,7 @@ export function DecisionChatFlow() {
               </div>
             )}
             {!messagesLoading && !visibleMessages.length && <EmptyConversation />}
-            <div className="space-y-5">
+            <div className="chat-reading-width space-y-5">
               {visibleMessages.map((message, index) => (
                 <div
                   key={message.id}
@@ -1876,19 +1876,20 @@ export function DecisionChatFlow() {
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-border bg-card p-3">
+          <div className="chat-reading-width shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
             {visibleStatus && (
               <div
+                role={visibleStatus.tone === 'error' ? 'alert' : 'status'}
                 className={clsx(
                   'mb-2 flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs',
                   visibleStatus.tone === 'working' &&
-                    'border-blue-500/30 bg-blue-500/10 text-blue-200',
+                    'status-info border-blue-500/30 bg-blue-500/10',
                 visibleStatus.tone === 'success' &&
-                    'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+                    'status-success border-emerald-500/30 bg-emerald-500/10',
                   visibleStatus.tone === 'warning' &&
-                    'border-amber-500/30 bg-amber-500/10 text-amber-100',
+                    'status-warning border-amber-500/30 bg-amber-500/10',
                   visibleStatus.tone === 'error' &&
-                    'border-red-500/30 bg-red-500/10 text-red-200',
+                    'status-error border-red-500/30 bg-red-500/10',
                   visibleStatus.tone === 'idle' &&
                     'border-border bg-secondary text-muted-foreground',
                 )}
@@ -1901,11 +1902,11 @@ export function DecisionChatFlow() {
               </div>
             )}
 
-            <div className="rounded-lg border border-border bg-secondary/40 p-2">
+            <div className="chat-composer">
               <div
                 role="group"
                 aria-label="回答模式"
-                className="mb-1.5 flex flex-wrap items-center gap-2 border-b border-border px-1 pb-1.5"
+                className="flex flex-wrap items-center gap-1.5 px-1"
               >
                 {ANSWER_MODES.map((mode) => {
                   const selected = answerMode === mode.id
@@ -1919,10 +1920,10 @@ export function DecisionChatFlow() {
                       disabled={isAnswerRunning}
                       title={mode.description}
                       className={clsx(
-                        'inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60',
+                        'inline-flex min-h-8 items-center rounded-lg px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60',
                         selected
-                          ? 'border-amber-400 bg-amber-300 text-zinc-950'
-                          : 'border-border bg-card text-muted-foreground hover:border-amber-400 hover:text-amber-400',
+                          ? 'bg-primary/12 font-semibold text-primary'
+                          : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                       )}
                     >
                       {mode.label}
@@ -1943,7 +1944,7 @@ export function DecisionChatFlow() {
                 aria-label="输入问题"
                 placeholder="输入问题…"
                 rows={2}
-                className="block max-h-32 min-h-[58px] w-full resize-none border-0 bg-transparent px-2 py-1.5 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground"
+                className="block max-h-32 min-h-[58px] w-full resize-none rounded-lg border-0 bg-transparent px-2 py-2 text-base leading-6 text-foreground placeholder:text-muted-foreground sm:text-sm"
               />
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-1 pt-1.5">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -1976,7 +1977,7 @@ export function DecisionChatFlow() {
                   title="发送"
                   onClick={() => void handleSend()}
                   disabled={!draft.trim() || isAnswerRunning}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-300 px-3 text-xs font-semibold text-zinc-950 hover:brightness-110 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
+                  className="btn-primary disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
                 >
                   {isAnswerRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   发送
@@ -1985,7 +1986,7 @@ export function DecisionChatFlow() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   )
 }

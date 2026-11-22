@@ -187,13 +187,11 @@ export default function Dashboard() {
   const unresolvedSnapshots = recentSnapshots.filter((snapshot) => !snapshot.outcome_direction).length
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 lg:py-12">
-      <div className="page-header !mb-8">
-        <span className="section-label">Decision Desk</span>
+    <div className="workspace-page workspace-page--reading">
+      <div className="page-header">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">旧工作台</h1>
-            <p className="mt-3 text-sm text-muted-foreground">状态、入口与待处理事项。</p>
+            <h1 className="workspace-heading tracking-tight text-foreground">旧工作台</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             {quickActions.map((action) => {

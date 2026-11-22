@@ -17,12 +17,13 @@
     --gdn-primary-950: #23282f;
 
     /* ── Surface stack (dark defaults — #141414 base) ── */
-    --background:   0 0% 8%;          /* #141414 warm deep black */
+    color-scheme: dark;
+    --background:   218 16% 11%;
     --surface-1:    220 6% 10%;
     --surface-2:    220 6% 13%;       /* card level */
     --surface-3:    220 5% 17%;       /* elevated / hover */
 
-    --card:         220 6% 11%;
+    --card:         218 14% 15%;
     --card-foreground: 220 13% 91%;
 
     /* ── Typography ── */
@@ -33,10 +34,10 @@
     --secondary:    220 5% 15%;
     --secondary-foreground: 220 9% 72%;
     --muted:        220 5% 12%;
-    --muted-foreground: 220 7% 46%;
+    --muted-foreground: 220 12% 71%;
 
     /* ── Borders ── */
-    --border:       220 5% 20%;       /* gray-700/40 feel */
+    --border:       218 12% 25%;
     --border-subtle: 220 5% 16%;
     --input:        220 5% 17%;
 
@@ -51,6 +52,12 @@
     --destructive:   2 62% 52%;
     --destructive-foreground: 0 0% 100%;
     --ring:          38 72% 58%;
+    --status-success: 155 55% 67%;
+    --status-warning: 36 90% 72%;
+    --status-error: 4 85% 76%;
+    --status-info: 205 90% 77%;
+    --rail: 218 15% 13%;
+    --workspace-gutter: clamp(1rem, 3vw, 3rem);
 
     /* ── Geometry ── */
     --radius: 0.75rem;
@@ -61,7 +68,8 @@
 
 /* ── Light mode (#FAFAF8) ── */
 .light {
-  --background:   43 20% 98%;       /* #FAFAF8 */
+  color-scheme: light;
+  --background:   42 26% 97%;
   --surface-1:    40 14% 95%;
   --surface-2:    40 12% 92%;
   --surface-3:    40 10% 88%;
@@ -76,13 +84,13 @@
   --secondary:    40 12% 93%;
   --secondary-foreground: 224 14% 30%;
   --muted:        40 10% 95%;
-  --muted-foreground: 224 8% 46%;
+  --muted-foreground: 223 12% 39%;
 
   --border:       40 10% 84%;       /* gray-200/60 feel */
   --border-subtle: 40 8% 90%;
   --input:        40 10% 92%;
 
-  --primary:           38 75% 48%;
+  --primary:           31 79% 31%;
   --primary-foreground: 0 0% 100%;
   --primary-dim:       38 60% 55%;
 
@@ -90,7 +98,12 @@
   --accent-foreground: 0 0% 100%;
   --destructive:   2 65% 48%;
   --destructive-foreground: 0 0% 100%;
-  --ring:          38 75% 48%;
+  --ring:          31 79% 31%;
+  --status-success: 151 64% 27%;
+  --status-warning: 32 83% 29%;
+  --status-error: 4 68% 37%;
+  --status-info: 210 75% 34%;
+  --rail: 42 21% 94%;
 }
 
 @layer base {
@@ -101,17 +114,6 @@
 
   html {
     font-size: 16px;
-  }
-  /* ── 响应式根字号：大屏自动放大整个 UI ──
-     Tailwind 的 text-xs/sm 等都是 rem 基数；改变 html font-size 会等比缩放全部文字/内边距。 */
-  @media (min-width: 1536px) { /* 2xl */
-    html { font-size: 16.5px; }
-  }
-  @media (min-width: 1920px) { /* FHD+ / 2K 显示器 */
-    html { font-size: 17.5px; }
-  }
-  @media (min-width: 2400px) { /* 4K / 5K 显示器 */
-    html { font-size: 19px; }
   }
 
   body {
@@ -124,17 +126,9 @@
     transition: background-color 200ms ease, color 200ms ease;
   }
 
-  /* Smooth theme switch */
-  *, *::before, *::after {
-    transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 180ms;
-    transition-timing-function: ease;
-  }
-
-  /* Serif titles */
   h1, h2, h3 {
-    font-family: 'IBM Plex Serif', Georgia, 'Source Han Serif SC', 'Songti SC', serif;
-    letter-spacing: -0.015em;
+    font-family: inherit;
+    letter-spacing: -0.018em;
   }
 
   /* Mono elements */
@@ -156,8 +150,8 @@
 
   /* ── Focus ring ── */
   :focus-visible {
-    outline: 2px solid hsl(var(--primary) / 0.5);
-    outline-offset: 2px;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
     border-radius: var(--radius-sm);
   }
 
@@ -202,6 +196,127 @@
 }
 
 @layer components {
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: hsl(var(--background));
+  }
+  .app-main {
+    flex: 1 1 0%;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+  }
+  .app-rail {
+    border-inline-end: 1px solid hsl(var(--border));
+    background: hsl(var(--rail));
+  }
+  @media (min-width: 48rem) {
+    .app-shell { flex-direction: row; }
+  }
+  .app-tabbar {
+    display: grid;
+    flex-shrink: 0;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 0.25rem 0.5rem max(0.25rem, env(safe-area-inset-bottom));
+    border-block-start: 1px solid hsl(var(--border));
+    background: hsl(var(--card));
+  }
+  .app-tab {
+    display: grid;
+    min-height: 3.25rem;
+    justify-items: center;
+    align-content: center;
+    gap: 0.2rem;
+    border-radius: var(--radius-sm);
+    color: hsl(var(--muted-foreground));
+    font-size: 0.75rem;
+  }
+  .app-tab[aria-current="page"] {
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+    font-weight: 700;
+  }
+  .app-tools {
+    position: fixed;
+    inset: auto 0 0;
+    margin-inline: auto;
+    width: min(100%, 34rem);
+    max-height: min(85dvh, 42rem);
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem 1rem 0 0;
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+  }
+  .app-tools[open] { display: flex; flex-direction: column; }
+  .app-tools::backdrop { background: rgb(12 16 22 / 0.56); }
+  .workspace-dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(calc(100% - 2rem), 42rem);
+    max-height: calc(100dvh - 2rem);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius-lg);
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
+    overflow: auto;
+  }
+  .workspace-dialog--drawer {
+    margin: 0 0 0 auto;
+    width: min(100%, 34rem);
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+  .workspace-dialog::backdrop { background: rgb(12 16 22 / 0.56); }
+  @media (min-width: 48rem) {
+    .app-tools { inset: 0; margin: auto; border-radius: 1rem; }
+  }
+  .workspace-page {
+    width: 100%;
+    max-width: var(--workspace-width, 92rem);
+    margin-inline: auto;
+    padding: clamp(1.25rem, 3vw, 2.75rem) var(--workspace-gutter) 3rem;
+  }
+  .workspace-page--reading { --workspace-width: 72rem; }
+  .chat-reading-width {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 60rem;
+  }
+  .chat-composer {
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius-lg);
+    background: hsl(var(--card));
+    padding: 0.5rem;
+  }
+  .chat-composer:focus-within {
+    border-color: hsl(var(--primary) / 0.65);
+  }
+  .workspace-heading {
+    font-size: clamp(1.5rem, 2.2vw, 2.25rem);
+    font-weight: 650;
+    line-height: 1.15;
+  }
+  .workspace-page :where(.page-header) {
+    row-gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .workspace-page :where(input, select, textarea) { min-width: 0; max-width: 100%; }
+  .field-control {
+    @apply min-h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground;
+  }
+  .icon-button {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground;
+  }
+  .status-success { color: hsl(var(--status-success)); }
+  .status-warning { color: hsl(var(--status-warning)); }
+  .status-error { color: hsl(var(--status-error)); }
+  .status-info { color: hsl(var(--status-info)); }
   /* ── Zone Header (大块功能分区标题，用于 Settings 等多区页面) ── */
   .zone-header {
     @apply flex items-baseline gap-3 mb-4 pb-2;
@@ -231,7 +346,7 @@
 
   /* ── Page Header ── */
   .page-header {
-    @apply mb-12 pb-8;
+    @apply mb-6 pb-5;
     border-bottom: 1px solid hsl(var(--border));
   }
 
@@ -240,10 +355,6 @@
     @apply rounded-xl border p-6 transition-all duration-300;
     background: hsl(var(--card));
     border-color: hsl(var(--border));
-  }
-  .card:hover {
-    border-color: hsl(var(--border) / 0.8);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   }
 
   /* ── Tag ── */
@@ -259,22 +370,22 @@
 
   /* ── Button — Primary ── */
   .btn-primary {
-    @apply rounded-lg px-5 py-2.5 text-sm font-medium tracking-wide;
-    background: var(--gdn-primary-600);
-    color: #fff;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
-  .btn-primary:hover { background: var(--gdn-primary-700); }
+  .btn-primary:hover { filter: brightness(1.12); }
   .btn-primary:active { transform: scale(0.97); }
 
   /* ── Button — Outline ── */
   .btn-outline {
-    @apply rounded-lg px-5 py-2.5 text-sm font-medium border bg-transparent;
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border bg-transparent px-4 py-2 text-sm font-medium;
     border-color: hsl(var(--border));
     color: hsl(var(--foreground-2, var(--muted-foreground)));
   }
   .btn-outline:hover {
-    border-color: var(--gdn-primary-500);
-    color: var(--gdn-primary-600);
+    border-color: hsl(var(--primary));
+    color: hsl(var(--foreground));
   }
   .btn-outline:active { transform: scale(0.97); }
 

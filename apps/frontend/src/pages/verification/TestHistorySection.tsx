@@ -108,7 +108,10 @@ export default function TestHistorySection({ category, onReplay, replayId }: Pro
                             <Eye size={11} />
                           </button>
                         )}
-                        <button onClick={e => { e.stopPropagation(); deleteHistory(rec.id); refresh() }}
+                        <button aria-label="删除这条测试记录" onClick={e => {
+                          e.stopPropagation()
+                          if (window.confirm('永久删除这条测试记录？')) { deleteHistory(rec.id); refresh() }
+                        }}
                           className="p-1 rounded hover:bg-red-400/10 text-muted-foreground hover:text-red-400">
                           <Trash2 size={11} />
                         </button>

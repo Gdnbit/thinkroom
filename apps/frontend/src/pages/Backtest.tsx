@@ -166,35 +166,33 @@ export default function Backtest() {
   const m = result?.metrics
 
   return (
-    <div className="p-6 2xl:p-8 space-y-5 max-w-[1400px] 2xl:max-w-[1760px] mx-auto">
-      <div className="page-header !mb-5 !pb-4">
-        <span className="section-label">Backtest</span>
-        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+    <div className="workspace-page space-y-5">
+      <div className="page-header">
+        <h1 className="workspace-heading text-foreground flex items-center gap-2">
           <TrendingUp size={20} className="text-primary" />
           策略回测
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">选择策略与参数，基于历史数据回测并查看绩效</p>
       </div>
 
       {/* ═══════ Config Panel ═══════ */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid gap-4 lg:grid-cols-[minmax(14rem,0.8fr)_minmax(0,1.2fr)]">
         {/* Strategy Selection */}
-        <div className="col-span-2 rounded-xl p-4" style={CARD}>
+        <div className="min-w-0 rounded-xl p-4" style={CARD}>
           <p className="text-xs font-semibold text-muted-foreground mb-3">策略选择</p>
           <div className="space-y-1.5">
             {strategies.map(s => (
-              <button key={s.id} onClick={() => setStrategyId(s.id)}
+              <button key={s.id} type="button" aria-pressed={strategyId === s.id} onClick={() => setStrategyId(s.id)}
                 className={clsx('w-full text-left px-3 py-2 rounded-lg transition-colors',
                   s.id === strategyId ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50')}>
                 <p className="text-sm font-medium">{s.name}</p>
-                <p className="text-xs opacity-50 mt-0.5">{s.description}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{s.description}</p>
               </button>
             ))}
           </div>
         </div>
 
         {/* Parameters */}
-        <div className="col-span-2 rounded-xl p-4 space-y-4" style={CARD}>
+        <div className="min-w-0 space-y-4 rounded-xl p-4" style={CARD}>
           <p className="text-xs font-semibold text-muted-foreground">参数配置</p>
 
           {/* Asset */}
@@ -202,7 +200,7 @@ export default function Backtest() {
             <label className="text-xs text-muted-foreground block mb-1">资产</label>
             <div className="flex flex-wrap gap-1">
               {ASSETS.map(a => (
-                <button key={a.symbol} onClick={() => setAsset(a.symbol)}
+                <button key={a.symbol} type="button" aria-pressed={asset === a.symbol} onClick={() => setAsset(a.symbol)}
                   className={asset === a.symbol ? 'filter-btn-active !text-xs !px-2.5 !py-1' : 'filter-btn !text-xs !px-2.5 !py-1'}>
                   {a.symbol}
                 </button>
@@ -213,9 +211,9 @@ export default function Backtest() {
           {/* Period */}
           <div>
             <label className="text-xs text-muted-foreground block mb-1">回测周期</label>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {PERIODS.map(p => (
-                <button key={p.value} onClick={() => setPeriod(p.value)}
+                <button key={p.value} type="button" aria-pressed={period === p.value} onClick={() => setPeriod(p.value)}
                   className={period === p.value ? 'filter-btn-active !text-xs !px-2.5 !py-1' : 'filter-btn !text-xs !px-2.5 !py-1'}>
                   {p.label}
                 </button>
@@ -225,29 +223,23 @@ export default function Backtest() {
 
           {/* Initial Capital */}
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">初始资金</label>
-            <input type="number" value={capital} onChange={e => setCapital(e.target.value)}
-              className="w-full h-8 rounded-lg px-3 text-[12px] font-mono text-foreground outline-none"
-              style={{ background: 'hsl(var(--secondary))', border: '1px solid hsl(var(--border))' }} />
+            <label htmlFor="backtest-capital" className="mb-1 block text-xs text-muted-foreground">初始资金</label>
+            <input id="backtest-capital" type="number" value={capital} onChange={e => setCapital(e.target.value)} className="field-control tabular-nums" />
           </div>
 
           {/* Strategy-specific params */}
           {curStrategy && curStrategy.params.map(p => (
             <div key={p.key}>
-              <label className="text-xs text-muted-foreground block mb-1">{p.label} ({p.min}-{p.max})</label>
-              <input type="number" value={params[p.key] ?? p.default}
+              <label htmlFor={`backtest-${p.key}`} className="mb-1 block text-xs text-muted-foreground">{p.label} ({p.min}–{p.max})</label>
+              <input id={`backtest-${p.key}`} type="number" value={params[p.key] ?? p.default}
                 min={p.min} max={p.max} step={p.type === 'float' ? 0.1 : 1}
                 onChange={e => setParams(prev => ({ ...prev, [p.key]: parseFloat(e.target.value) || p.default }))}
-                className="w-full h-8 rounded-lg px-3 text-[12px] font-mono text-foreground outline-none"
-                style={{ background: 'hsl(var(--secondary))', border: '1px solid hsl(var(--border))' }} />
+                className="field-control tabular-nums" />
             </div>
           ))}
 
           {/* Run */}
-          <button onClick={runBacktest} disabled={running}
-            className={clsx('w-full h-10 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors',
-              running ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90')}
-            style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}>
+          <button type="button" onClick={runBacktest} disabled={running} className="btn-primary w-full disabled:opacity-50">
             <Play size={14} />
             {running ? '回测运行中...' : '运行回测'}
           </button>
@@ -292,8 +284,8 @@ export default function Backtest() {
           {result.trades && result.trades.length > 0 && (
             <div className="rounded-xl p-4" style={CARD}>
               <p className="text-xs font-semibold text-muted-foreground mb-2">交易记录（近 {result.trades.length} 笔）</p>
-              <div className="max-h-[300px] overflow-y-auto">
-                <table className="w-full">
+              <div className="max-h-[300px] overflow-auto" role="region" tabIndex={0} aria-label="交易记录">
+                <table className="w-full min-w-[26rem]">
                   <thead>
                     <tr className="text-xs text-muted-foreground font-medium" style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                       <th className="text-left px-3 py-2">方向</th>

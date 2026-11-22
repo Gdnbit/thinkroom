@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   KeyRound, CheckCircle2, XCircle,
-  Loader2, Save, Eye, EyeOff, RefreshCw, Database, Bot, Clock,
+  Loader2, Save, RefreshCw, Database, Bot, Clock,
   Share2, AlertTriangle, Lock, Unlock, Wifi, WifiOff, Activity,
   Download, Upload, Play, ExternalLink
 } from 'lucide-react'
@@ -208,7 +208,6 @@ export default function Settings() {
   const [roleModels, setRoleModels] = useState<Record<string, string>>({})
 
   // ── API Key 输入 + HFK 模式 ──
-  const [keyVisible, setKeyVisible] = useState<Record<string, boolean>>({})
 
   // ── 数据接口健康 ──
   interface ServiceHealth {
@@ -651,14 +650,10 @@ export default function Settings() {
   // ══════════════════════════════════════════════════════
   return (
     <div className="flex-1 overflow-auto">
-      <div className="max-w-[1400px] 2xl:max-w-[1600px] mx-auto p-6 2xl:p-8 pb-28">
+      <div className="workspace-page workspace-page--reading !pb-28">
       {/* 页面头 */}
-      <div className="page-header !mb-5 !pb-4">
-        <span className="section-label">Settings</span>
-        <h1 className="text-2xl 2xl:text-3xl font-semibold text-foreground">系统设置</h1>
-        <p className="text-sm 2xl:text-base text-muted-foreground mt-1">
-          管理 API Key、模型分工和数据源配置 · 全部 LLM 调用统一经 OpenRouter 路由 · 温度由系统自动调节
-        </p>
+      <div className="page-header">
+        <h1 className="workspace-heading text-foreground">系统设置</h1>
       </div>
 
       {/* ════════════════════════════════════════════════════
@@ -666,9 +661,7 @@ export default function Settings() {
           需要用户输入/修改的设置项
           ════════════════════════════════════════════════════ */}
       <div className="zone-header">
-        <span className="zone-eyebrow">01 · Configuration</span>
         <h2 className="zone-title">配置项</h2>
-        <span className="zone-desc hidden md:inline">管理 Key、模型分工等需要手动修改的参数</span>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-8">
@@ -683,48 +676,25 @@ export default function Settings() {
             <Lock size={10}/> SOPS
           </span>
         </div>
-        <p className="text-xs 2xl:text-sm text-muted-foreground mb-4">
-          API Key 由 SOPS / secrets env 注入，当前页面只展示运行态配置状态；如需新增或轮换密钥，请更新 SOPS 后重启后端。
-        </p>
-        <p className="hidden">
-          API Key 状态由后端运行环境返回，本页不会接收或保存明文密钥。
-        </p>
+        <details className="mb-3 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-medium">如何更新密钥</summary>
+          <p className="mt-2">通过 SOPS 或后端环境变量更新密钥，再重启后端。</p>
+        </details>
 
-        <div className="space-y-3">
+        <ul className="divide-y divide-border">
           {API_KEYS.map(k => {
             const isSet = data?.[k.settingsField] as boolean ?? false
-            const visible = keyVisible[k.id] || false
-
             return (
-              <div key={k.id} className="p-3 rounded-lg bg-muted/20 border border-border">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div>
+              <li key={k.id} className="flex items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
                     <span className="text-xs font-mono font-semibold text-foreground">{k.name}</span>
-                    <p className="text-xs 2xl:text-sm text-muted-foreground mt-0.5">{k.description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{k.description}</p>
                   </div>
                   <StatusBadge ok={isSet} label={isSet ? '已配置' : '未设置'} />
-                </div>
-                <div className="relative">
-                  <input
-                    type="password"
-                    value={isSet ? 'SOPS injected' : 'Not injected'}
-                    readOnly
-                    disabled
-                    placeholder={isSet ? '••••••••••••• （留空保持原值）' : `填入 ${k.name}...`}
-                    className="w-full bg-muted/30 border border-border rounded px-3 py-2 text-xs font-mono text-muted-foreground placeholder:text-muted-foreground focus:outline-none pr-9 cursor-not-allowed"
-                  />
-                  <button
-                    onClick={() => setKeyVisible(prev => ({ ...prev, [k.id]: !visible }))}
-                    disabled
-                    className="absolute right-2 top-2 text-muted-foreground/60 cursor-not-allowed"
-                  >
-                    {visible ? <EyeOff size={14}/> : <Eye size={14}/>}
-                  </button>
-                </div>
-              </div>
+              </li>
             )
           })}
-        </div>
+        </ul>
 
         {/* 刷新 Key 状态按钮 */}
         <div className="mt-4 flex items-center gap-3">
@@ -736,11 +706,6 @@ export default function Settings() {
             {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
             刷新密钥状态
           </button>
-          {false && (
-            <span className="flex items-center gap-1 text-xs font-mono text-accent">
-              <CheckCircle2 size={12} /> 密钥状态已刷新
-            </span>
-          )}
         </div>
       </section>
 
@@ -801,9 +766,7 @@ export default function Settings() {
           只读状态面板：系统/配额/数据源接口
           ════════════════════════════════════════════════════ */}
       <div className="zone-header">
-        <span className="zone-eyebrow">02 · Monitoring</span>
         <h2 className="zone-title">系统监测</h2>
-        <span className="zone-desc hidden md:inline">只读状态 · 无需修改，仅供查看和刷新</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
@@ -965,9 +928,7 @@ export default function Settings() {
           包含配置（Cookie、博主、服务 URL）与状态（有效期、入口、最近内容）
           ════════════════════════════════════════════════════ */}
       <div className="zone-header">
-        <span className="zone-eyebrow">03 · Social Media</span>
         <h2 className="zone-title">社交媒体接入</h2>
-        <span className="zone-desc hidden md:inline">Twitter/X · 微博 · 小红书 · 抖音 · 微信公众号</span>
       </div>
 
       {/* ════════ 5. 社交媒体信息源（全宽）════════ */}
@@ -1181,7 +1142,7 @@ uv run main.py --platform dy --lt qrcode --type search --keywords "测试"`}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <input type="text" value={f.val} onChange={e => f.set(e.target.value)}
+                        <input aria-label={`${f.label} Cookie`} type="password" value={f.val} onChange={e => f.set(e.target.value)}
                           placeholder={f.ph}
                           className="flex-1 bg-input border border-border rounded px-2 py-1.5 text-xs font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
                         <button
@@ -1252,10 +1213,6 @@ uv run main.py --platform dy --lt qrcode --type search --keywords "测试"`}
                     <label className="text-xs 2xl:text-sm font-mono text-muted-foreground">Google AI API Key（视频转文字，免费）</label>
                     <StatusBadge ok={socialServices?.google_ai_api_key_set ?? false} label={socialServices?.google_ai_api_key_set ? '已配置' : '未设置'} />
                   </div>
-                  <input type="password" value={socialServices?.google_ai_api_key_set ? 'SOPS injected' : 'Not injected'} readOnly disabled
-                    placeholder={socialServices?.google_ai_api_key_set ? '••••••••••••• （留空保持原值）' : '在 aistudio.google.com 免费申请'}
-                    className="w-full bg-muted/30 border border-border rounded px-2 py-1.5 text-xs font-mono text-muted-foreground placeholder:text-muted-foreground focus:outline-none mt-0.5 cursor-not-allowed" />
-                  <p className="text-[10px] 2xl:text-xs text-muted-foreground mt-0.5">Gemini 2.5 Flash 免费层：每日 1500 次</p>
                 </div>
               </div>
               <button onClick={handleSaveServices} disabled={servicesSaving || (!rsshubUrl && !mediacrawlerUrl && !wemprssUrl)}
@@ -1441,21 +1398,18 @@ uv run main.py --platform dy --lt qrcode --type search --keywords "测试"`}
 
       {/* ════════ Sticky 底部保存栏 ════════ */}
       <div className="sticky bottom-0 left-0 right-0 z-20 border-t border-border bg-card/95 backdrop-blur-sm">
-        <div className="max-w-[1400px] mx-auto px-6 py-3 flex items-center gap-3">
+        <div className="mx-auto flex max-w-[72rem] flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded text-xs font-mono font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity">
+            className="btn-primary disabled:opacity-50">
             {saving ? <Loader2 size={13} className="animate-spin"/> : <Save size={13}/>}
             {saving ? '保存中...' : '保存设置'}
           </button>
           <button onClick={handleTest} disabled={testing}
-            className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded text-xs font-mono hover:bg-border disabled:opacity-50 transition-colors">
+            className="btn-outline disabled:opacity-50">
             {testing ? <Loader2 size={13} className="animate-spin"/> : <RefreshCw size={13}/>}
             {testing ? '测试中...' : '测试 LLM 连接'}
           </button>
           {saved && <span className="flex items-center gap-1 text-xs font-mono text-accent"><CheckCircle2 size={13}/> 已保存</span>}
-          <span className="ml-auto text-xs 2xl:text-sm font-mono text-muted-foreground hidden md:inline">
-            非密钥设置会保存到本地配置 · API Key 由 SOPS 注入
-          </span>
         </div>
       </div>
     </div>

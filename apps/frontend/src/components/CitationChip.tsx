@@ -16,10 +16,10 @@ export interface CitationData {
 }
 
 const STANCE_META: Record<string, { color: string; bg: string; border: string; icon: JSX.Element; label: string }> = {
-  bullish:     { color: 'text-emerald-300', bg: 'bg-emerald-500/15 hover:bg-emerald-500/25', border: 'border-emerald-500/40', icon: <TrendingUp size={8} />, label: '看多' },
-  bearish:     { color: 'text-rose-300',    bg: 'bg-rose-500/15 hover:bg-rose-500/25',       border: 'border-rose-500/40',    icon: <TrendingDown size={8} />, label: '看空' },
-  conditional: { color: 'text-amber-300',   bg: 'bg-amber-500/15 hover:bg-amber-500/25',     border: 'border-amber-500/40',   icon: <Minus size={8} />,        label: '条件' },
-  neutral:     { color: 'text-slate-300',   bg: 'bg-slate-500/15 hover:bg-slate-500/25',     border: 'border-slate-500/40',   icon: <Minus size={8} />,        label: '中性' },
+  bullish:     { color: 'status-success', bg: 'bg-emerald-500/15 hover:bg-emerald-500/25', border: 'border-emerald-500/40', icon: <TrendingUp size={8} />, label: '看多' },
+  bearish:     { color: 'status-error',   bg: 'bg-rose-500/15 hover:bg-rose-500/25',       border: 'border-rose-500/40',    icon: <TrendingDown size={8} />, label: '看空' },
+  conditional: { color: 'status-warning', bg: 'bg-amber-500/15 hover:bg-amber-500/25',     border: 'border-amber-500/40',   icon: <Minus size={8} />,        label: '条件' },
+  neutral:     { color: 'text-foreground', bg: 'bg-slate-500/15 hover:bg-slate-500/25',     border: 'border-slate-500/40',   icon: <Minus size={8} />,        label: '中性' },
 }
 
 function timeHorizonLabel(value?: string | null) {
