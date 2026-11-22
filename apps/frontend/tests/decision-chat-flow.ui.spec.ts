@@ -128,6 +128,39 @@ test.describe('Decision chat main flow', () => {
     await expect(create).toBeFocused()
   })
 
+  test('wraps long conversation text inside mobile message bubbles', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 })
+    const created_at = '2026-07-01T02:00:00Z'
+    const session = { id: 'long-message', title: '长消息', updated_at: created_at, message_count: 2 }
+    const question = 'question-'.repeat(24)
+    const answer = 'https://example.com/' + 'reference'.repeat(24)
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/api/v1/chat/sessions') return route.fulfill({ json: [session] })
+      if (path.endsWith('/messages')) {
+        return route.fulfill({ json: [
+          { id: 'question', role: 'user', content: question, created_at },
+          { id: 'answer', role: 'assistant', content: answer, created_at },
+        ] })
+      }
+      if (isChatIngestionContextPath(path)) return route.fulfill({ json: emptyIngestionContext() })
+      if (path === '/api/v1/alerts') return route.fulfill({ json: { alerts: [], total: 0 } })
+      return route.fulfill({ json: [] })
+    })
+
+    await page.goto(`${baseUrl}/chat?session=${session.id}`)
+    for (const text of [question, answer]) {
+      const bubble = page.getByRole('article').filter({ hasText: text })
+      await expect(bubble).toBeVisible()
+      await expect.poll(() => bubble.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return bounds.left >= 0 &&
+          bounds.right <= innerWidth &&
+          element.scrollWidth <= element.clientWidth + 1
+      })).toBe(true)
+    }
+  })
+
   test('verification requests scenario data only when its tab opens', async ({ page }) => {
     const requests: string[] = []
     await page.route('**/api/**', (route) => {

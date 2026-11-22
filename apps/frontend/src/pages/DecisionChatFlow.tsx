@@ -938,8 +938,8 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMs
         </div>
       )}
       <article
-                  className={clsx(
-          'rounded-lg border px-4 py-3 text-sm shadow-sm',
+        className={clsx(
+          'min-w-0 rounded-lg border px-4 py-3 text-sm shadow-sm',
           isAssistant
             ? 'w-full max-w-full border-border bg-card text-foreground sm:max-w-[min(980px,calc(100%-3rem))]'
             : 'max-w-[92%] border-primary/40 bg-secondary text-foreground sm:max-w-[min(720px,calc(100%-3rem))]',
@@ -947,7 +947,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMs
       >
         <div
           className={clsx(
-            'prose prose-sm max-w-none leading-6',
+            'prose prose-sm max-w-none leading-6 [overflow-wrap:anywhere] [&_pre]:overflow-x-auto',
             isAssistant
             ? 'text-foreground'
             : 'prose-p:my-0',
