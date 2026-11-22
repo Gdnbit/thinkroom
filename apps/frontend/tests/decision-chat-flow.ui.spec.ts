@@ -881,6 +881,7 @@ test.describe('Decision chat main flow', () => {
   })
 
   test('renders committee detail trust receipt and selected source scope', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
     const consoleErrors: string[] = []
     page.on('console', (message) => {
       if (message.type() === 'error') consoleErrors.push(message.text())
@@ -888,6 +889,7 @@ test.describe('Decision chat main flow', () => {
     page.on('pageerror', (error) => consoleErrors.push(error.message))
 
     const debateId = 'debate-trust-1'
+    const debateQuestion = '只根据选定资料判断下周铜价会不会上涨。' + 'reference'.repeat(24)
     await page.route('**/api/v1/committee**', async (route) => {
       const url = new URL(route.request().url())
       if (url.pathname.endsWith(`/api/v1/committee/${debateId}`)) {
@@ -895,7 +897,7 @@ test.describe('Decision chat main flow', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             id: debateId,
-            question: '只根据选定资料判断下周铜价会不会上涨。',
+            question: debateQuestion,
             asset: 'GENERAL',
             committee_level: 'triple',
             status: 'completed',
@@ -971,7 +973,7 @@ test.describe('Decision chat main flow', () => {
           body: JSON.stringify({
             debates: [{
               id: debateId,
-              question: '只根据选定资料判断下周铜价会不会上涨。',
+              question: debateQuestion,
               asset: 'GENERAL',
               committee_level: 'triple',
               status: 'completed',
@@ -1026,10 +1028,20 @@ test.describe('Decision chat main flow', () => {
     })
 
     await page.goto(`${baseUrl}/debate`)
-    await page.getByRole('button', { name: /只根据选定资料判断下周铜价/ }).click()
+    await page.getByRole('button', { name: '启动辩论' }).click()
+    await expect(page.getByRole('textbox', { name: /辩论问题/ })).toBeEditable()
+    await expect(page.getByRole('combobox', { name: '资产' })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: '辩论轮数' })).toBeVisible()
+    await page.getByRole('button', { name: '取消' }).click()
+    const overflowing = () => page.getByRole('main').evaluate((main) => main.scrollWidth > main.clientWidth)
+    const debate = page.getByRole('button', { name: /只根据选定资料判断下周铜价/ })
+    await expect(debate).toBeVisible()
+    await expect.poll(overflowing).toBe(false)
+    await debate.click()
 
     const receiptButton = page.getByRole('button', { name: /选定资料不足.*详情/ })
     await expect(receiptButton).toBeVisible()
+    await expect.poll(overflowing).toBe(false)
     await expect(page.getByText('资料范围')).toBeVisible()
     await expect(page.getByText('限定 1 个资料源')).toBeVisible()
     await expect(page.getByText('引用观点 0 条')).toBeVisible()
