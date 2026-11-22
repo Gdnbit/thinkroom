@@ -201,8 +201,8 @@ function FundValuationTab() {
       {lastFetch && <p className="text-[10px] text-muted-foreground/35">上次更新: {lastFetch} · 交易时段每 2 分钟自动刷新</p>}
 
       {/* Fund Table */}
-      <div className="rounded-xl overflow-hidden" style={CARD}>
-        <table className="w-full">
+      <div className="overflow-x-auto rounded-xl" style={CARD} role="region" tabIndex={0} aria-label="基金估值表">
+        <table className="w-full min-w-[38rem]">
           <thead>
             <tr className="text-xs text-muted-foreground font-medium" style={{ borderBottom: '1px solid hsl(var(--border))' }}>
               <th className="text-left px-4 py-2.5">代码</th>
@@ -279,17 +279,15 @@ export default function DataHub() {
   const [tab, setTab] = useState<'sources' | 'fund'>('sources')
 
   return (
-    <div className="p-6 2xl:p-8 space-y-5 max-w-[1400px] 2xl:max-w-[1760px] mx-auto">
-      <div className="flex items-start justify-between page-header !mb-5 !pb-4">
+    <div className="workspace-page space-y-5">
+      <div className="flex items-start justify-between page-header">
         <div>
-          <span className="section-label">Data Hub</span>
-          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+          <h1 className="workspace-heading text-foreground flex items-center gap-2">
             <Database size={20} className="text-primary" />
             数据中心
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">数据源总览 · 基金实时估值</p>
         </div>
-        <div className="flex gap-1 mt-6">
+        <div className="flex flex-wrap gap-1">
           <button onClick={() => setTab('sources')}
             className={tab === 'sources' ? 'filter-btn-active' : 'filter-btn'}>
             数据源

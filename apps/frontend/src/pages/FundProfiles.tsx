@@ -15,6 +15,7 @@ import {
   Trash2, Loader2, Info,
 } from 'lucide-react'
 import api from '@/services/api'
+import WorkspaceDialog from '@/components/WorkspaceDialog'
 
 // ── 类型 ──────────────────────────────────────────────
 
@@ -103,10 +104,10 @@ export default function FundProfiles() {
     basket.reduce((sum, item) => sum + item.weight, 0)
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="workspace-page space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <h1 className="workspace-heading flex items-center gap-2">
             <Wallet className="w-5 h-5 text-primary" />
             基金配置
           </h1>
@@ -165,8 +166,8 @@ export default function FundProfiles() {
         </div>
       )}
       {list && list.length > 0 && (
-        <div className="rounded-xl bg-card border border-border overflow-hidden">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card" role="region" tabIndex={0} aria-label="基金配置表">
+          <table className="w-full min-w-[36rem] text-xs">
             <thead className="bg-secondary/30 text-muted-foreground border-b border-border">
               <tr>
                 <th className="text-left py-2.5 px-3">代码</th>
@@ -348,19 +349,19 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-card border-b border-border px-5 py-3 flex items-center justify-between">
+    <WorkspaceDialog title={isEdit ? `编辑 ${initial!.fund_code}` : '新增基金'} onClose={onClose}>
+      <div>
+        <div className="sticky top-0 z-10 bg-card border-b border-border px-5 py-3 flex items-center justify-between">
           <h2 className="text-base font-semibold">
             {isEdit ? `编辑 ${initial!.fund_code}` : '新增基金'}
           </h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-secondary">
-            <X className="w-4 h-4" />
+          <button type="button" onClick={onClose} aria-label="关闭基金表单" className="icon-button">
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="基金代码 *">
               <input
                 value={form.fund_code}
@@ -392,7 +393,7 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
             />
           </Field>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Field label="锚点净值 (last_nav)">
               <input
                 type="number" step="0.0001" min="0"
@@ -420,17 +421,20 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
             </Field>
           </div>
 
-          <Field label="basket（成分指数 + 权重）">
+          <fieldset className="min-w-0">
+            <legend className="mb-2 text-sm font-medium">成分指数与权重</legend>
             <div className="space-y-1.5">
               {form.basket.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
+                    aria-label={`成分 ${i + 1} 指数代码`}
                     value={item.symbol}
                     onChange={e => updateBasketItem(i, { symbol: e.target.value.trim() })}
                     placeholder="如 CSI300, SPX, HSI"
                     className="flex-1 px-2.5 py-1.5 rounded-md bg-background border border-border text-sm font-mono"
                   />
                   <input
+                    aria-label={`成分 ${i + 1} 权重`}
                     type="number" step="0.01" min="0" max="1"
                     value={item.weight}
                     onChange={e => updateBasketItem(i, { weight: parseFloat(e.target.value) || 0 })}
@@ -438,6 +442,8 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
                     className="w-24 px-2.5 py-1.5 rounded-md bg-background border border-border text-sm tabular-nums"
                   />
                   <button
+                    type="button"
+                    aria-label={`移除成分 ${i + 1}`}
                     onClick={() => removeBasketItem(i)}
                     className="p-1.5 rounded hover:bg-red-500/15 text-muted-foreground hover:text-red-500"
                   >
@@ -461,9 +467,10 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
                 {weightStatus === 'ok' && ' ✓'}
               </p>
             </div>
-          </Field>
+          </fieldset>
 
-          <Field label="状态">
+          <fieldset>
+            <legend className="mb-1 text-xs font-medium text-muted-foreground">状态</legend>
             <div className="flex gap-2 text-xs">
               {(['active', 'archived'] as const).map(s => (
                 <label key={s} className="flex items-center gap-1.5 cursor-pointer">
@@ -478,7 +485,7 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
                 </label>
               ))}
             </div>
-          </Field>
+          </fieldset>
 
           <Field label="备注">
             <textarea
@@ -498,21 +505,21 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-card border-t border-border px-5 py-3 flex items-center justify-end gap-2">
+        <div className="sticky bottom-0 z-10 bg-card border-t border-border px-5 py-3 flex items-center justify-end gap-2">
           <button onClick={onClose} className="px-3 py-1.5 rounded-md hover:bg-secondary text-sm">
             取消
           </button>
           <button
             onClick={handleSubmit}
             disabled={isPending}
-            className="px-3 py-1.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium flex items-center gap-1.5 disabled:opacity-50"
+            className="btn-primary disabled:opacity-50"
           >
             {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             保存
           </button>
         </div>
       </div>
-    </div>
+    </WorkspaceDialog>
   )
 }
 
@@ -520,10 +527,10 @@ function ProfileModal({ initial, onClose }: { initial: FundProfile | null; onClo
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="text-xs text-muted-foreground mb-1 block">{label}</label>
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-muted-foreground">{label}</span>
       {children}
-    </div>
+    </label>
   )
 }
 

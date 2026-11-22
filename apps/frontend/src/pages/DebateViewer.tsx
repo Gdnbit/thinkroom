@@ -113,22 +113,22 @@ function NewDebateForm({ onClose, onDone }: { onClose: () => void; onDone: (id: 
         <button type="button" onClick={onClose} className="text-xs text-muted-foreground hover:text-foreground">取消</button>
       </div>
       <div>
-        <label className="text-xs text-muted-foreground block mb-1">辩论问题 *</label>
-        <textarea value={question} onChange={e => setQuestion(e.target.value)} rows={3}
+        <label htmlFor="debate-question" className="text-xs text-muted-foreground block mb-1">辩论问题 *</label>
+        <textarea id="debate-question" required value={question} onChange={e => setQuestion(e.target.value)} rows={3}
           placeholder="例：BTC 在未来 30 天内能否突破前高？"
           className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">资产</label>
-          <select value={asset} onChange={e => setAsset(e.target.value)}
+          <label htmlFor="debate-asset" className="text-xs text-muted-foreground block mb-1">资产</label>
+          <select id="debate-asset" value={asset} onChange={e => setAsset(e.target.value)}
             className="w-full bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
             {['BTC','ETH','SPX','GOLD','SOL'].map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground block mb-1">辩论轮数</label>
-          <select value={rounds} onChange={e => setRounds(Number(e.target.value))}
+          <label htmlFor="debate-rounds" className="text-xs text-muted-foreground block mb-1">辩论轮数</label>
+          <select id="debate-rounds" value={rounds} onChange={e => setRounds(Number(e.target.value))}
             className="w-full bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
             <option value={1}>1 轮</option><option value={2}>2 轮</option><option value={3}>3 轮</option>
           </select>
@@ -328,7 +328,7 @@ function DebateDetail({ debateId, onBack }: { debateId: string; onBack: () => vo
     <div className="space-y-4">
       <div className="flex items-start gap-3">
         <button onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 shrink-0">← 返回</button>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{data.question}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{data.asset} · {data.created_at?.slice(0,10)} · {data.duration_ms ? `${(data.duration_ms/1000).toFixed(1)}s` : ''}</p>
         </div>
@@ -373,7 +373,6 @@ function DebateList({ onSelect }: { onSelect: (id: string) => void }) {
   if (debates.length === 0) return (
     <div className="border border-dashed border-border rounded-xl p-10 text-center">
       <p className="text-sm text-muted-foreground">暂无辩论记录</p>
-      <p className="text-xs text-muted-foreground mt-1">点击「启动辩论」开始首次委员会辩论</p>
     </div>
   )
   return (
@@ -382,13 +381,13 @@ function DebateList({ onSelect }: { onSelect: (id: string) => void }) {
         <button key={d.id} onClick={()=>onSelect(d.id)}
           className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
           <div className="flex items-start justify-between gap-3">
-            <p className="text-xs text-foreground leading-relaxed flex-1">{d.question}</p>
+            <p className="min-w-0 flex-1 text-xs leading-relaxed text-foreground">{d.question}</p>
             <div className="flex flex-col items-end gap-1 shrink-0">
               {d.final_direction && <span className={clsx('text-xs font-medium', DIR_COLOR[d.final_direction] ?? 'text-slate-400')}>{d.final_direction}</span>}
               {d.consensus_level && <span className={clsx('text-xs', CONSENSUS_LABEL[d.consensus_level]?.color ?? 'text-slate-400')}>{CONSENSUS_LABEL[d.consensus_level]?.label}</span>}
             </div>
           </div>
-          <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{d.asset}</span>
             <span>{d.created_at?.slice(0,10)}</span>
             {d.final_conviction && <span>确信 {Math.round(d.final_conviction*100)}%</span>}
@@ -410,12 +409,10 @@ export default function DebateViewer() {
   }
 
   return (
-    <div className="p-6 2xl:p-8 max-w-[1100px] 2xl:max-w-[1300px] mx-auto space-y-5">
-      <div className="flex items-start justify-between page-header !mb-5 !pb-4">
+    <div className="workspace-page workspace-page--reading space-y-5 [overflow-wrap:anywhere]">
+      <div className="flex items-start justify-between page-header">
         <div>
-          <span className="section-label">Debate</span>
-          <h1 className="text-2xl font-semibold text-foreground">审议记录</h1>
-          <p className="text-sm text-muted-foreground mt-1">V2 六席动态激活 · 多模型辩论 · 独立裁决</p>
+          <h1 className="workspace-heading text-foreground">审议记录</h1>
         </div>
         {!selectedId && (
           <button onClick={()=>setShowForm(p=>!p)}

@@ -176,17 +176,14 @@ export default function QualityMonitor() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="workspace-page space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <h1 className="workspace-heading flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
             质量监控
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            source_health_logs 历史聚合 · 与 DataHub 实时面板互补
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <select

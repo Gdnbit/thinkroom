@@ -231,14 +231,17 @@ const TABS = [
   { key: 'unit',     icon: Scale,          label: '单位换算' },
 ] as const
 
-export default function ToolboxWidget({ expanded = false }: { expanded?: boolean }) {
+export default function ToolboxWidget({ expanded = false, inline = false }: { expanded?: boolean; inline?: boolean }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<string>('calc')
   const [hovered, setHovered] = useState(false)
 
   return (
-    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div className={clsx('relative', inline && 'min-w-0 basis-full')} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <button
+        type="button"
+        aria-expanded={open}
+        aria-label="小工具"
         onClick={() => setOpen(o => !o)}
         className={clsx(
           'flex items-center h-9 rounded-lg transition-colors duration-200 w-full',
@@ -267,9 +270,9 @@ export default function ToolboxWidget({ expanded = false }: { expanded?: boolean
       {/* Panel */}
       {open && (
         <div
-          role="dialog"
+          role="region"
           aria-label="小工具"
-          className="absolute left-full bottom-0 z-50 w-[280px] rounded-xl overflow-hidden ml-2.5"
+          className={clsx('overflow-hidden rounded-xl', inline ? 'mt-2 w-full' : 'fixed bottom-4 left-[13rem] z-50 w-72')}
           style={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-3 pt-3 pb-2">
@@ -284,7 +287,7 @@ export default function ToolboxWidget({ expanded = false }: { expanded?: boolean
                 </button>
               ))}
             </div>
-            <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-0.5">
+            <button type="button" aria-label="关闭小工具" onClick={() => setOpen(false)} className="icon-button">
               <X size={14} />
             </button>
           </div>

@@ -23,13 +23,15 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  X,
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { preloadPrimaryRoute } from '@/routeLoaders'
 import { useAlerts, type Alert } from '@/services/hooks'
 import { useTheme } from '@/hooks/useTheme'
 import ToolboxWidget from '@/components/ToolboxWidget'
+import WorkspaceErrorBoundary from '@/components/WorkspaceErrorBoundary'
 
 type NavItemConfig = {
   to: string
@@ -106,7 +108,7 @@ function Tooltip({ label, description }: { label: string; description: string })
   )
 }
 
-function AlertPanel({ onClose }: { onClose: () => void }) {
+function AlertPanel({ onClose, inline = false }: { onClose: () => void; inline?: boolean }) {
   const { data, isLoading, refetch } = useAlerts()
   const alerts = data?.alerts ?? []
   const storageKey = 'dismissed_alert_ids'
@@ -148,9 +150,12 @@ function AlertPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      role="dialog"
+      role={inline ? 'region' : 'dialog'}
       aria-label="系统提醒"
-      className="absolute bottom-4 left-14 z-50 flex max-h-[calc(100vh-5rem)] w-[22rem] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+      className={clsx(
+        'flex max-h-[24rem] flex-col overflow-hidden rounded-xl border border-border bg-card',
+        inline ? 'mt-3' : 'fixed bottom-4 left-[13rem] z-50 w-[min(22rem,calc(100vw-14rem))] shadow-lg',
+      )}
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
@@ -202,10 +207,10 @@ function AlertPanel({ onClose }: { onClose: () => void }) {
 }
 
 const itemBase = 'flex h-9 w-full items-center rounded-lg transition-colors duration-200'
-const itemActive = `${itemBase} bg-secondary text-foreground font-medium`
+const itemActive = `${itemBase} bg-primary/12 text-primary font-semibold`
 const itemIdle = `${itemBase} text-muted-foreground hover:bg-secondary/70 hover:text-foreground`
 
-function NavItem({ item, expanded }: { item: NavItemConfig; expanded: boolean }) {
+function NavItem({ item, expanded, onNavigate }: { item: NavItemConfig; expanded: boolean; onNavigate?: () => void }) {
   const [hovered, setHovered] = useState(false)
   const Icon = item.icon
 
@@ -213,6 +218,8 @@ function NavItem({ item, expanded }: { item: NavItemConfig; expanded: boolean })
     <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <NavLink
         to={item.to}
+        end
+        onClick={onNavigate}
         onFocus={() => preloadPrimaryRoute(item.to)}
         onPointerEnter={(event) => {
           if (event.pointerType === 'mouse') preloadPrimaryRoute(item.to)
@@ -249,6 +256,7 @@ function NavGroup({ group, expanded, defaultOpen }: { group: NavGroupConfig; exp
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
+        aria-expanded={open}
         className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70 hover:bg-secondary/50 hover:text-muted-foreground"
       >
         <ChevronDown size={12} className={clsx('transition-transform', open && 'rotate-180')} />
@@ -266,7 +274,9 @@ function NavGroup({ group, expanded, defaultOpen }: { group: NavGroupConfig; exp
 }
 
 export default function Layout() {
-  const location = useLocation()
+  const { pathname } = useLocation()
+  const toolsDialog = useRef<HTMLDialogElement>(null)
+  const content = useRef<HTMLElement>(null)
   const [expanded, setExpanded] = useState(() => {
     try {
       return localStorage.getItem('sidebar_expanded') !== 'false'
@@ -287,6 +297,10 @@ export default function Layout() {
   })
 
   useEffect(() => {
+    content.current?.scrollTo(0, 0)
+  }, [pathname])
+
+  useEffect(() => {
     const syncDismissed = () => {
       try {
         setDismissedIds(new Set(JSON.parse(localStorage.getItem('dismissed_alert_ids') || '[]')))
@@ -298,23 +312,14 @@ export default function Layout() {
     return () => window.removeEventListener('storage', syncDismissed)
   }, [])
 
-  useEffect(() => {
-    const collapseForViewport = () => {
-      if (window.innerWidth < 1024 || (location.pathname === '/chat' && window.innerWidth < 1440)) {
-        setExpanded(false)
-      }
-    }
-    collapseForViewport()
-    window.addEventListener('resize', collapseForViewport)
-    return () => window.removeEventListener('resize', collapseForViewport)
-  }, [location.pathname])
-
   const alertCount = useMemo(
     () => (alertData?.alerts ?? []).filter((alert) => !dismissedIds.has(alert.id)).length,
     [alertData?.alerts, dismissedIds],
   )
 
-  const sideWidth = expanded ? 'w-[12rem]' : 'w-[3.25rem]'
+  const sideWidth = expanded ? 'w-[13rem]' : 'w-16'
+  const closeTools = () => toolsDialog.current?.close()
+  const openTools = () => toolsDialog.current?.showModal()
 
   const toggleSidebar = () => {
     setExpanded((prev) => {
@@ -325,15 +330,14 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="app-shell">
       <a href="#main-content" className="skip-link">跳到主内容</a>
 
       <nav
         aria-label="主导航"
-        className={clsx(sideWidth, 'flex shrink-0 flex-col px-2 py-3 transition-[width] duration-200')}
-        style={{ background: 'hsl(var(--muted))', borderRight: '1px solid hsl(var(--border))' }}
+        className={clsx(sideWidth, 'app-rail hidden shrink-0 flex-col px-3 py-4 transition-[width] duration-200 md:flex')}
       >
-        <div className="mb-3 flex h-10 items-center">
+        <div className="mb-6 flex h-10 items-center">
           <NavLink to="/chat" aria-label="ThinkRoom 思考间" className="flex min-w-0 items-center gap-2.5 rounded-lg">
             <img src="/favicon.svg" alt="" width="36" height="36" className="shrink-0" />
             {expanded && <span className="truncate font-serif text-sm font-semibold text-foreground">ThinkRoom</span>}
@@ -362,6 +366,7 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={() => setShowMoreNav((prev) => !prev)}
+                aria-expanded={showMoreNav}
                 className="flex h-9 w-full items-center rounded-lg text-muted-foreground transition-colors duration-200 hover:bg-secondary/70 hover:text-foreground"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center">
@@ -390,6 +395,11 @@ export default function Layout() {
               )}
             </section>
           )}
+          {!expanded && (
+            <button type="button" className={itemIdle} aria-label="更多功能" aria-haspopup="dialog" onClick={openTools}>
+              <Menu size={16} className="mx-auto" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
         <div className="mt-3 space-y-0.5 border-t border-border pt-2">
@@ -403,15 +413,58 @@ export default function Layout() {
         </div>
       </nav>
 
-      <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto bg-background">
-        <Suspense fallback={
-          <div role="status" className="flex min-h-[40vh] items-center justify-center text-xs text-muted-foreground">
-            加载页面…
-          </div>
-        }>
-          <Outlet />
-        </Suspense>
+      <main id="main-content" ref={content} tabIndex={-1} className="app-main">
+        <WorkspaceErrorBoundary key={pathname}>
+          <Suspense fallback={
+            <div role="status" className="flex min-h-[40vh] items-center justify-center text-xs text-muted-foreground">
+              加载页面…
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
+        </WorkspaceErrorBoundary>
       </main>
+      <nav aria-label="主导航" className="app-tabbar md:hidden">
+        {navGroups[0].items.map(({ to, label, icon: Icon }) => (
+          <NavLink key={to} to={to} end className="app-tab" onFocus={() => preloadPrimaryRoute(to)}>
+            <Icon size={18} aria-hidden="true" />
+            {label}
+          </NavLink>
+        ))}
+        <button type="button" className="app-tab" aria-haspopup="dialog" onClick={openTools}>
+          <Menu size={18} aria-hidden="true" />
+          更多功能
+        </button>
+      </nav>
+      <dialog ref={toolsDialog} aria-labelledby="tools-title" className="app-tools">
+        <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <h2 id="tools-title" className="text-base font-semibold">更多功能</h2>
+          <button type="button" className="icon-button" aria-label="关闭更多功能" onClick={closeTools}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="space-y-5 overflow-y-auto p-4">
+          {navGroups.slice(1).map((group) => (
+            <section key={group.id} aria-labelledby={`tools-${group.id}`}>
+              <h3 id={`tools-${group.id}`} className="mb-2 px-2 text-xs font-semibold text-muted-foreground">{group.label}</h3>
+              <div className="grid grid-cols-1 gap-1 min-[360px]:grid-cols-2">
+                {group.items.map((item) => <NavItem key={item.to} item={item} expanded onNavigate={closeTools} />)}
+              </div>
+            </section>
+          ))}
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <button type="button" className="btn-outline" onClick={toggleTheme}>
+              {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
+              {theme === 'dark' ? '亮色模式' : '暗色模式'}
+            </button>
+            <button type="button" className="btn-outline" aria-expanded={showAlerts} onClick={() => setShowAlerts((prev) => !prev)}>
+              <Bell size={16} aria-hidden="true" /> 系统提醒{alertCount > 0 && ` (${alertCount})`}
+            </button>
+            <ToolboxWidget expanded inline />
+          </div>
+          {showAlerts && <AlertPanel inline onClose={() => setShowAlerts(false)} />}
+        </div>
+      </dialog>
     </div>
   )
 }

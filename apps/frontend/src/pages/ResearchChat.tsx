@@ -1632,7 +1632,6 @@ export default function ResearchChat() {
         <div className="border-b border-border p-3">
           <div className="flex items-center justify-between">
             <div>
-              <span className="section-label mb-1 block text-[10px]">Cases</span>
               <p className="font-serif text-sm font-semibold text-foreground">决策会话</p>
             </div>
             <button
@@ -1673,7 +1672,10 @@ export default function ResearchChat() {
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />
               <span className="min-w-0 flex-1 truncate text-xs">{s.title}</span>
               <button
-                onClick={(e) => { e.stopPropagation(); deleteSession.mutate(s.id) }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (window.confirm('删除这段对话及其中的消息？此操作无法撤销。')) deleteSession.mutate(s.id)
+                }}
                 className="opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
                 aria-label="删除会话"
               >
@@ -1712,7 +1714,6 @@ export default function ResearchChat() {
         <header className="shrink-0 border-b border-border px-5 py-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <span className="section-label mb-2 block">Decision Case</span>
               <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground">旧问答页</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">

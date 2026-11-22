@@ -95,6 +95,70 @@ test.describe('Decision chat main flow', () => {
     await expect(page.getByRole('link', { name: '去问答并保存判断' })).toBeVisible()
     await page.getByRole('link', { name: '去问答并保存判断' }).click()
     await expect(page.getByRole('button', { name: '上传资料', exact: true })).toBeVisible()
+
+    const more = nav.getByRole('button', { name: '更多功能' })
+    await more.click()
+    const menu = page.getByRole('dialog', { name: '更多功能' })
+    await expect(menu.getByRole('link', { name: '系统设置' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    await expect(more).toBeFocused()
+    await more.press('Enter')
+    await menu.getByRole('link', { name: '观察池' }).click()
+    await expect(menu).toBeHidden()
+    await expect(page.getByRole('heading', { name: '观察池' })).toBeVisible()
+    await page.getByRole('button', { name: '新建观察列表' }).click()
+    await expect(page.getByRole('textbox', { name: '列表名称' })).toBeEditable()
+  })
+
+  test('keeps fund setup inside an accessible modal', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      return route.fulfill({ json: path === '/api/v1/alerts' ? { alerts: [], total: 0 } : [] })
+    })
+    await page.goto(`${baseUrl}/fund-profiles`)
+    const create = page.getByRole('button', { name: '新增基金' })
+    await create.click()
+    const dialog = page.getByRole('dialog', { name: '新增基金' })
+    await expect(dialog.getByRole('textbox', { name: /基金代码/ })).toBeEditable()
+    await expect(dialog.getByRole('combobox', { name: '市场' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect(create).toBeFocused()
+  })
+
+  test('wraps long conversation text inside mobile message bubbles', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 })
+    const created_at = '2026-07-01T02:00:00Z'
+    const session = { id: 'long-message', title: '长消息', updated_at: created_at, message_count: 2 }
+    const question = 'question-'.repeat(24)
+    const answer = 'https://example.com/' + 'reference'.repeat(24)
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/api/v1/chat/sessions') return route.fulfill({ json: [session] })
+      if (path.endsWith('/messages')) {
+        return route.fulfill({ json: [
+          { id: 'question', role: 'user', content: question, created_at },
+          { id: 'answer', role: 'assistant', content: answer, created_at },
+        ] })
+      }
+      if (isChatIngestionContextPath(path)) return route.fulfill({ json: emptyIngestionContext() })
+      if (path === '/api/v1/alerts') return route.fulfill({ json: { alerts: [], total: 0 } })
+      return route.fulfill({ json: [] })
+    })
+
+    await page.goto(`${baseUrl}/chat?session=${session.id}`)
+    for (const text of [question, answer]) {
+      const bubble = page.getByRole('article').filter({ hasText: text })
+      await expect(bubble).toBeVisible()
+      await expect.poll(() => bubble.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return bounds.left >= 0 &&
+          bounds.right <= innerWidth &&
+          element.scrollWidth <= element.clientWidth + 1
+      })).toBe(true)
+    }
   })
 
   test('verification requests scenario data only when its tab opens', async ({ page }) => {
@@ -817,6 +881,7 @@ test.describe('Decision chat main flow', () => {
   })
 
   test('renders committee detail trust receipt and selected source scope', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
     const consoleErrors: string[] = []
     page.on('console', (message) => {
       if (message.type() === 'error') consoleErrors.push(message.text())
@@ -824,6 +889,7 @@ test.describe('Decision chat main flow', () => {
     page.on('pageerror', (error) => consoleErrors.push(error.message))
 
     const debateId = 'debate-trust-1'
+    const debateQuestion = '只根据选定资料判断下周铜价会不会上涨。' + 'reference'.repeat(24)
     await page.route('**/api/v1/committee**', async (route) => {
       const url = new URL(route.request().url())
       if (url.pathname.endsWith(`/api/v1/committee/${debateId}`)) {
@@ -831,7 +897,7 @@ test.describe('Decision chat main flow', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             id: debateId,
-            question: '只根据选定资料判断下周铜价会不会上涨。',
+            question: debateQuestion,
             asset: 'GENERAL',
             committee_level: 'triple',
             status: 'completed',
@@ -907,7 +973,7 @@ test.describe('Decision chat main flow', () => {
           body: JSON.stringify({
             debates: [{
               id: debateId,
-              question: '只根据选定资料判断下周铜价会不会上涨。',
+              question: debateQuestion,
               asset: 'GENERAL',
               committee_level: 'triple',
               status: 'completed',
@@ -962,10 +1028,20 @@ test.describe('Decision chat main flow', () => {
     })
 
     await page.goto(`${baseUrl}/debate`)
-    await page.getByRole('button', { name: /只根据选定资料判断下周铜价/ }).click()
+    await page.getByRole('button', { name: '启动辩论' }).click()
+    await expect(page.getByRole('textbox', { name: /辩论问题/ })).toBeEditable()
+    await expect(page.getByRole('combobox', { name: '资产' })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: '辩论轮数' })).toBeVisible()
+    await page.getByRole('button', { name: '取消' }).click()
+    const overflowing = () => page.getByRole('main').evaluate((main) => main.scrollWidth > main.clientWidth)
+    const debate = page.getByRole('button', { name: /只根据选定资料判断下周铜价/ })
+    await expect(debate).toBeVisible()
+    await expect.poll(overflowing).toBe(false)
+    await debate.click()
 
     const receiptButton = page.getByRole('button', { name: /选定资料不足.*详情/ })
     await expect(receiptButton).toBeVisible()
+    await expect.poll(overflowing).toBe(false)
     await expect(page.getByText('资料范围')).toBeVisible()
     await expect(page.getByText('限定 1 个资料源')).toBeVisible()
     await expect(page.getByText('引用观点 0 条')).toBeVisible()

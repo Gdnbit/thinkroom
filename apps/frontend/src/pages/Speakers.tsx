@@ -316,10 +316,9 @@ export default function Speakers() {
   const totalAliases = speakers.reduce((sum, s) => sum + s.aliases.length, 0)
 
   return (
-    <div className="p-6 2xl:p-8 max-w-[1200px] 2xl:max-w-[1500px] mx-auto space-y-6">
+    <div className="workspace-page space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><Users size={20} /> 来源画像</h1>
-        <p className="text-sm text-muted-foreground mt-1">管理发言人画像、别名映射和观点汇总</p>
+        <h1 className="workspace-heading text-foreground flex items-center gap-2"><Users size={20} /> 来源画像</h1>
       </div>
 
       {/* Stats */}
@@ -341,8 +340,9 @@ export default function Speakers() {
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="搜索发言人..."
-            className="w-full text-sm bg-muted border border-border rounded-lg pl-9 pr-3 py-2 text-foreground" />
+            aria-label="搜索来源"
+            placeholder="搜索来源…"
+            className="field-control !pl-9" />
         </div>
         <button onClick={fetchSpeakers} className="text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
           刷新

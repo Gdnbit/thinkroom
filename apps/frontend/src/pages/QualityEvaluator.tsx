@@ -189,11 +189,11 @@ export default function QualityEvaluator() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="workspace-page space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <h1 className="workspace-heading flex items-center gap-2">
             <Gauge className="w-5 h-5 text-primary" />
             质量评估
           </h1>
@@ -390,7 +390,7 @@ export default function QualityEvaluator() {
       {/* History table */}
       {history.length > 0 && (
         <Card title={`历史记录（${history.length}）`}>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" role="region" tabIndex={0} aria-label="评估历史">
             <table className="w-full text-xs">
               <thead className="text-muted-foreground border-b border-border bg-secondary/30">
                 <tr>

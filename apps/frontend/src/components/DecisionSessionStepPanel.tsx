@@ -6,32 +6,25 @@ import {
   ClipboardCheck,
   History,
   MessageSquare,
-  Save,
   ShieldCheck,
 } from 'lucide-react'
 import { currentDecisionSession, type DecisionSession } from '@/data/decisionSession'
 
 type StepKind = 'knowledge' | 'audit' | 'review'
 
-const stepCopy: Record<StepKind, { eyebrow: string; title: string; summary: string; nextLabel: string; nextTo: string }> = {
+const stepCopy: Record<StepKind, { title: string; nextLabel: string; nextTo: string }> = {
   knowledge: {
-    eyebrow: 'Current Decision Session',
     title: '资料确认',
-    summary: '确认本次上传资料已经被接收、解析、切片，并进入可检索证据索引。',
     nextLabel: '查看证据审计',
     nextTo: '/audit',
   },
   audit: {
-    eyebrow: 'Evidence Audit',
-    title: '证据审计',
-    summary: '检查当前回答依赖了哪些证据、哪些证据强、哪些风险仍需要补充材料。',
-    nextLabel: '保存决策快照',
+    title: '审计范围',
+    nextLabel: '查看复盘',
     nextTo: '/decision-snapshots',
   },
   review: {
-    eyebrow: 'Outcome Review',
     title: '复盘中心',
-    summary: '围绕已保存的决策版本记录结果、偏差来源和下一轮修正。',
     nextLabel: '回到问答修正',
     nextTo: '/chat',
   },
@@ -55,23 +48,20 @@ export default function DecisionSessionStepPanel({ step, session = currentDecisi
   const strongEvidence = session.evidence.filter((item) => item.strength === 'strong').length
 
   return (
-    <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-primary">{copy.eyebrow}</p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">{copy.title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{copy.summary}</p>
-          <p className="mt-3 max-w-3xl text-sm font-medium leading-relaxed text-foreground">{session.title}</p>
+          <h2 className="text-base font-semibold text-foreground">{copy.title}</h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{session.title}</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link to="/chat" className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-xs font-semibold text-foreground hover:bg-surface-3">
+          <Link to="/chat" className="btn-outline">
             <MessageSquare className="h-3.5 w-3.5" />
             当前问答
           </Link>
-          <Link to={copy.nextTo} className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary bg-primary px-3 text-xs font-semibold text-primary-foreground">
+          <Link to={copy.nextTo} className="btn-outline">
             {step === 'knowledge' && <ClipboardCheck className="h-3.5 w-3.5" />}
-            {step === 'audit' && <Save className="h-3.5 w-3.5" />}
-            {step === 'review' && <History className="h-3.5 w-3.5" />}
+            {step !== 'knowledge' && <History className="h-3.5 w-3.5" />}
             {copy.nextLabel}
           </Link>
         </div>
