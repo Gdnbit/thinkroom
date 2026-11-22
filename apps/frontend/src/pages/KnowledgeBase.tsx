@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   RefreshCw,
   Loader2,
@@ -1680,7 +1680,7 @@ export default function KnowledgeBase() {
       <div className="page-header !mb-5 !pb-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold tracking-tight text-foreground">资料</h1>
-          <a href="/chat" className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-xs font-medium text-foreground hover:border-primary/40">返回问答</a>
+          <Link to="/chat" className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-secondary px-3 text-xs font-medium text-foreground hover:border-primary/40">返回问答</Link>
         </div>
       </div>
 
@@ -1689,10 +1689,12 @@ export default function KnowledgeBase() {
           <div className="flex min-w-0 items-center gap-3">
             {sessionReady ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" /> : <BookOpen className="h-4 w-4 shrink-0 text-primary" />}
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-foreground">当前会话</h2>
-              <p className="truncate text-xs text-muted-foreground">
-                {decisionSession.files.length === 0 ? '还没有资料' : sessionReady ? `${decisionSession.files.length} 份资料已可用于问答` : `${decisionSession.files.length} 份资料 · ${activeStage?.title ?? '处理中'}`}
-              </p>
+              <h2 className="text-sm font-semibold text-foreground">会话资料</h2>
+              {decisionSession.files.length > 0 && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {sessionReady ? `${decisionSession.files.length} 份可用` : activeStage?.title ?? '处理中'}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -1701,7 +1703,10 @@ export default function KnowledgeBase() {
           </div>
         </div>
         {decisionSession.files.length === 0 ? (
-          <div className="border-t border-border px-4 py-8 text-center"><p className="text-sm text-muted-foreground">在问答中上传文件后，这里会显示处理结果。</p></div>
+          <div className="flex flex-col items-center gap-3 border-t border-border px-4 py-8">
+            <p className="text-sm text-muted-foreground">会话中暂无资料</p>
+            <Link to="/chat" className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">去问答上传资料</Link>
+          </div>
         ) : (
           <div className="border-t border-border">
             {decisionSession.files.map((file) => (
@@ -1732,48 +1737,46 @@ export default function KnowledgeBase() {
       {showLibrary && (
         <div>
           <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-            <button onClick={() => setShowUpload(v => !v)} className="flex items-center gap-1.5 rounded border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:bg-border"><Upload size={12} /> 维护导入</button>
+            <button type="button" aria-expanded={showUpload} onClick={() => setShowUpload(v => !v)} className="flex items-center gap-1.5 rounded border border-border bg-secondary px-3 py-1.5 text-xs font-medium hover:bg-border"><Upload size={12} /> 导入资料</button>
             <button onClick={load} className="flex items-center gap-1.5 rounded bg-secondary px-3 py-1.5 text-xs hover:bg-border">{loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} 刷新</button>
           </div>
 
       {showUpload && (
         <div className="mb-4 border border-border/60 rounded-xl p-4 bg-secondary/20">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-foreground">手动补充资料</p>
-            <button onClick={() => setShowUpload(false)} className="text-muted-foreground hover:text-foreground"><X size={14} /></button>
+            <button type="button" aria-label="关闭导入表单" onClick={() => setShowUpload(false)} className="ml-auto text-muted-foreground hover:text-foreground"><X size={14} /></button>
           </div>
-          <p className="text-[11px] text-muted-foreground mb-2">支持 txt / md / pdf / docx / jpg/png/webp</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
             <div className="relative">
-              <input list="dl-source-type" value={uploadSourceType} onChange={e => setUploadSourceType(e.target.value)} placeholder="来源类型" className="bg-secondary border border-border rounded px-2 py-1 text-[11px] w-full" />
+              <input aria-label="来源类型" list="dl-source-type" value={uploadSourceType} onChange={e => setUploadSourceType(e.target.value)} placeholder="来源类型" className="bg-secondary border border-border rounded px-2 py-1 text-[11px] w-full" />
               <datalist id="dl-source-type">
                 <option value="专业文章" /><option value="群聊记录" /><option value="视频文字稿" />
                 <option value="个人笔记" /><option value="研究报告" /><option value="社交媒体" />
               </datalist>
             </div>
-            <input value={uploadSpeaker} onChange={e => setUploadSpeaker(e.target.value)} placeholder="来源/作者" className="bg-secondary border border-border rounded px-2 py-1 text-[11px]" />
+            <input aria-label="来源或作者" value={uploadSpeaker} onChange={e => setUploadSpeaker(e.target.value)} placeholder="来源/作者" className="bg-secondary border border-border rounded px-2 py-1 text-[11px]" />
             <div className="relative">
-              <input list="dl-trust" value={uploadTrust} onChange={e => setUploadTrust(e.target.value)} placeholder="可信度" className="bg-secondary border border-border rounded px-2 py-1 text-[11px] w-full" />
+              <input aria-label="可信度" list="dl-trust" value={uploadTrust} onChange={e => setUploadTrust(e.target.value)} placeholder="可信度" className="bg-secondary border border-border rounded px-2 py-1 text-[11px] w-full" />
               <datalist id="dl-trust">
                 <option value="高 — 长期准确/权威来源" /><option value="中 — 一般参考" /><option value="低 — 仅供了解" />
               </datalist>
             </div>
           </div>
-          <input value={uploadNote} onChange={e => setUploadNote(e.target.value)} placeholder="备注（可选）" className="w-full bg-secondary border border-border rounded px-2 py-1.5 text-[11px] mb-2" />
+          <input aria-label="备注（可选）" value={uploadNote} onChange={e => setUploadNote(e.target.value)} placeholder="备注（可选）" className="w-full bg-secondary border border-border rounded px-2 py-1.5 text-[11px] mb-2" />
           {uploadStatus && (
             <div className={`mb-2 text-[11px] rounded px-2 py-1.5 ${uploadStatus.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-400/30' : uploadStatus.type === 'done' ? 'bg-green-500/10 text-green-400 border border-green-400/30' : 'bg-blue-500/10 text-blue-300 border border-blue-400/30'}`}>
               {uploadStatus.type === 'uploading' && <Loader2 size={12} className="inline animate-spin mr-1" />}
               {uploadStatus.msg}
             </div>
           )}
-          <label className="flex items-center justify-center gap-2 py-4 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
+          <label className="flex items-center justify-center gap-2 py-4 border border-dashed border-border rounded-lg cursor-pointer hover:bg-secondary/50 focus-within:ring-2 focus-within:ring-primary transition-colors">
             <Upload size={16} className="text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">点击选择文件（支持多选）</span>
+            <span className="text-xs font-medium text-foreground">选择文件</span>
             <input
               type="file"
               multiple
               accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png,.webp"
-              className="hidden"
+              className="sr-only"
               onChange={async (e) => {
                 if (!e.target.files?.length) return
                 const fileList = Array.from(e.target.files)

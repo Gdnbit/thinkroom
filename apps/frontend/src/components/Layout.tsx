@@ -334,15 +334,10 @@ export default function Layout() {
         style={{ background: 'hsl(var(--muted))', borderRight: '1px solid hsl(var(--border))' }}
       >
         <div className="mb-3 flex h-10 items-center">
-          <NavLink to="/chat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <span className="font-serif text-sm font-semibold">TR</span>
+          <NavLink to="/chat" aria-label="ThinkRoom 思考间" className="flex min-w-0 items-center gap-2.5 rounded-lg">
+            <img src="/favicon.svg" alt="" width="36" height="36" className="shrink-0" />
+            {expanded && <span className="truncate font-serif text-sm font-semibold text-foreground">ThinkRoom</span>}
           </NavLink>
-          {expanded && (
-            <div className="ml-2.5 min-w-0">
-              <p className="truncate font-serif text-sm font-semibold leading-none text-foreground" title="ThinkRoom 思考间">ThinkRoom</p>
-              <p className="mt-1 truncate text-[11px] leading-none text-muted-foreground" title="让资料中的观点与思维方式参与新问题思考">思考间 · 多视角思考</p>
-            </div>
-          )}
           {expanded && (
             <button
               onClick={toggleTheme}

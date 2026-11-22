@@ -121,7 +121,7 @@ function hasReferenceTime(content: string) {
 
 function ensureReferenceTime(content: string, payload?: Record<string, unknown>, generatedAt?: string) {
   if (hasReferenceTime(content)) return content
-  return `截至 ${referenceTimeFromPayload(payload, generatedAt)}，以下回答基于本次会话可检索到的资料、引用证据与行情快照。\n\n${content}`
+  return `截至 ${referenceTimeFromPayload(payload, generatedAt)}\n\n${content}`
 }
 
 function tryParseJson(text: string): unknown | null {

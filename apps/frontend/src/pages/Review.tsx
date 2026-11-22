@@ -50,8 +50,6 @@ export default function Review() {
     () => (snapshotsQuery.data ?? []).filter((snapshot) => !isSystemRecord(snapshot) && (snapshot.visibility_scope === 'user_primary' || snapshot.record_origin === 'chat_user_confirmed')),
     [snapshotsQuery.data],
   )
-  const completedCount = records.filter((snapshot) => Boolean(snapshot.outcome_direction)).length
-  const replayedCount = records.filter((snapshot) => snapshot.replay_status === 'replayed').length
   const visibleRecords = records.filter((snapshot) => {
     if (filter === 'pending') return !snapshot.outcome_direction
     if (filter === 'completed') return Boolean(snapshot.outcome_direction)
@@ -67,13 +65,7 @@ export default function Review() {
         </button>
       </header>
 
-      <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-        <span><strong className="mr-1 text-sm text-foreground">{records.length}</strong>已保存判断</span>
-        <span><strong className="mr-1 text-sm text-foreground">{completedCount}</strong>已有结果</span>
-        <span><strong className="mr-1 text-sm text-foreground">{replayedCount}</strong>已完成回放</span>
-      </section>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {records.length > 0 && (
         <div className="flex items-center gap-1" role="group" aria-label="复盘记录筛选">
           {filterOptions.map((option) => (
             <button key={option.id} type="button" onClick={() => setFilter(option.id)} aria-pressed={filter === option.id} className={clsx('rounded-lg px-3 py-1.5 text-xs font-medium transition-colors', filter === option.id ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground')}>
@@ -81,8 +73,7 @@ export default function Review() {
             </button>
           ))}
         </div>
-        <Link to="/chat" className="text-xs font-medium text-primary hover:underline">返回问答</Link>
-      </div>
+      )}
 
       {snapshotsQuery.isLoading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />正在读取记录</div>

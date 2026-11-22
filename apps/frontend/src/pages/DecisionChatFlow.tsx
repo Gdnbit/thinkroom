@@ -502,8 +502,7 @@ function EvidencePanel({
         )}
         {invalidCount > 0 && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">无效引用 {invalidCount}</span>}
         {mismatchCount > 0 && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">方向待核验 {mismatchCount}</span>}
-        <span className="ml-auto inline-flex items-center gap-1 text-muted-foreground">
-          <span className="hidden sm:inline">{open ? '收起' : '展开'}</span>
+        <span aria-hidden="true" className="ml-auto inline-flex items-center text-muted-foreground">
           {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </span>
       </button>
@@ -943,7 +942,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMs
           'rounded-lg border px-4 py-3 text-sm shadow-sm',
           isAssistant
             ? 'w-full max-w-full border-border bg-card text-foreground sm:max-w-[min(980px,calc(100%-3rem))]'
-            : 'max-w-[92%] border-amber-500 bg-amber-500 text-white sm:max-w-[min(720px,calc(100%-3rem))]',
+            : 'max-w-[92%] border-primary/40 bg-secondary text-foreground sm:max-w-[min(720px,calc(100%-3rem))]',
         )}
       >
         <div
@@ -951,7 +950,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMs
             'prose prose-sm max-w-none leading-6',
             isAssistant
             ? 'text-foreground'
-              : 'prose-p:my-0 prose-strong:text-white prose-a:text-white prose-code:text-white',
+            : 'prose-p:my-0',
           )}
         >
           {isAssistant ? (
@@ -982,17 +981,10 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: ChatMs
             qualityReport={qualityReport}
           />
         )}
-        <div
-          className={clsx(
-            'mt-3 flex flex-wrap items-center gap-2 text-[11px]',
-            isAssistant ? 'text-muted-foreground' : 'text-white/80',
-          )}
-        >
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
           <span>{formatTime(message.created_at)}</span>
-          {isAssistant && typeof claimsUsed === 'number' && <span>引用证据 {claimsUsed} 条</span>}
-          {isAssistant && typeof qualityReport?.duration_ms === 'number' && <span>耗时 {(qualityReport.duration_ms / 1000).toFixed(1)}s</span>}
           {isAssistant && qualityReport?.decision_ready === false && <span className="text-amber-400">需要复核</span>}
-          {isAssistant && qualityReport?.decision_ready === true && <span className="text-emerald-400">可作为参考</span>}
+          {isAssistant && citations.length === 0 && qualityReport?.decision_ready === true && <span className="text-emerald-400">可作为参考</span>}
           {isAssistant && (
             <button
               type="button"
@@ -1037,7 +1029,7 @@ function EmptyConversation() {
       <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
         <MessageSquarePlus className="h-5 w-5" />
       </div>
-      <h2 className="mt-4 text-base font-semibold text-foreground">开始新的问答</h2>
+      <h2 className="mt-4 text-xl font-semibold tracking-tight text-foreground">开始新的问答</h2>
     </div>
   )
 }
@@ -1275,7 +1267,13 @@ export function DecisionChatFlow() {
   }
 
   async function handleDeleteSession(sessionId: string) {
-    await deleteSession.mutateAsync(sessionId)
+    if (!window.confirm('删除这段对话及其中的消息？此操作无法撤销。')) return
+    try {
+      await deleteSession.mutateAsync(sessionId)
+    } catch {
+      setStatus({ tone: 'error', text: '删除失败，请重试。' })
+      return
+    }
     if (activeSessionId === sessionId) {
       const next = sessions.find((item) => item.id !== sessionId)
       if (next) {
@@ -1682,6 +1680,7 @@ export function DecisionChatFlow() {
               onClick={() => void handleNewSession()}
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:border-amber-400 hover:text-amber-400 disabled:opacity-50"
               disabled={createSession.isPending}
+              aria-label="新建会话"
               title="新建会话"
             >
               {createSession.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -1697,7 +1696,7 @@ export function DecisionChatFlow() {
             )}
             {!sessionsLoading && !visibleSessions.length && (
               <div className="rounded-lg border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-                暂无历史。发送第一条问题后会自动保存。
+                暂无对话
               </div>
             )}
             {visibleSessions.map((session) => {
@@ -1718,29 +1717,16 @@ export function DecisionChatFlow() {
                     onClick={() => selectSession(session.id, { scrollToConversation: true })}
                     aria-current={active ? 'page' : undefined}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {sessionTitle(session)}
-                      </span>
-                      {active ? (
-                        <span className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white">
-                          当前
-                        </span>
-                      ) : (
-                        <span className="shrink-0 text-[11px] text-muted-foreground">{session.message_count ?? 0} 条</span>
-                      )}
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{formatTime(session.updated_at)}</span>
-                      <span>{active ? `${session.message_count ?? 0} 条消息` : '打开会话'}</span>
-                    </div>
+                    <span className="block truncate text-sm font-medium text-foreground">{sessionTitle(session)}</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">{formatTime(session.updated_at)}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => void handleDeleteSession(session.id)}
                     className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-red-500/10 hover:text-red-300 group-hover:opacity-100 focus:opacity-100"
-                    title="删除当前会话"
-                    aria-label="删除当前会话"
+                    title="删除对话"
+                    aria-label={`删除对话：${sessionTitle(session)}`}
+                    disabled={deleteSession.isPending}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -1760,10 +1746,7 @@ export function DecisionChatFlow() {
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-5 py-2.5">
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-foreground">
-                {activeSession ? sessionTitle(activeSession) : '新的决策问答'}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {activeSession ? `更新于 ${formatTime(activeSession.updated_at)}` : '发送消息后自动创建会话'}
+                {activeSession && sessionTitle(activeSession)}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1813,7 +1796,7 @@ export function DecisionChatFlow() {
                 )}
                 {!sessionsLoading && !visibleSessions.length && (
                   <div className="rounded-lg border border-dashed border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-                    暂无历史。发送第一条问题后会自动保存。
+                    暂无对话
                   </div>
                 )}
                 {visibleSessions.slice(0, 8).map((session) => {
@@ -1938,7 +1921,7 @@ export function DecisionChatFlow() {
                       className={clsx(
                         'inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60',
                         selected
-                          ? 'border-amber-400 bg-amber-500 text-white'
+                          ? 'border-amber-400 bg-amber-300 text-zinc-950'
                           : 'border-border bg-card text-muted-foreground hover:border-amber-400 hover:text-amber-400',
                       )}
                     >
@@ -1946,21 +1929,19 @@ export function DecisionChatFlow() {
                     </button>
                   )
                 })}
-                <span className="sr-only">
-                  当前由用户手动选择回答模式；普通问答仍会做资产、时间和检索范围识别。
-                </span>
               </div>
               <textarea
                 data-testid="decision-chat-input"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
+                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                     event.preventDefault()
                     void handleSend()
                   }
                 }}
-                placeholder="输入问题，或把文件拖到这里后再提问..."
+                aria-label="输入问题"
+                placeholder="输入问题…"
                 rows={2}
                 className="block max-h-32 min-h-[58px] w-full resize-none border-0 bg-transparent px-2 py-1.5 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground"
               />
@@ -1982,9 +1963,10 @@ export function DecisionChatFlow() {
                     title="上传资料"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading || isAnswerRunning}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:border-amber-400 hover:text-amber-400 disabled:opacity-50"
+                    className="inline-flex h-9 items-center gap-2 rounded-lg px-2 text-foreground hover:bg-card hover:text-primary disabled:opacity-50"
                   >
                     {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                    上传资料
                   </button>
                 </div>
                 <button
@@ -1994,9 +1976,10 @@ export function DecisionChatFlow() {
                   title="发送"
                   onClick={() => void handleSend()}
                   disabled={!draft.trim() || isAnswerRunning}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-300 px-3 text-xs font-semibold text-zinc-950 hover:brightness-110 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
                 >
                   {isAnswerRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  发送
                 </button>
               </div>
             </div>

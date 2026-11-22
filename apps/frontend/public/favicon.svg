@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ThinkRoom">
-  <rect width="64" height="64" rx="14" fill="#d99a32"/>
-  <path d="M9 18h23v6h-8v23h-7V24H9zM35 18h10c8 0 12 4 12 10 0 4-2 7-6 9l7 10h-8l-6-9h-2v9h-7V18zm7 6v8h3c4 0 5-1 5-4s-1-4-5-4h-3z" fill="#141414"/>
+  <rect width="64" height="64" rx="15" fill="#231b16"/>
+  <path d="M15 27v-9a3 3 0 0 1 3-3h9m10 0h9a3 3 0 0 1 3 3v9m0 10v9a3 3 0 0 1-3 3h-9m-10 0h-9a3 3 0 0 1-3-3v-9" fill="none" stroke="#f9c984" stroke-width="4" stroke-linecap="round"/>
+  <path d="M26 32h12m-6-6v12" stroke="#fff1d9" stroke-width="4" stroke-linecap="round"/>
 </svg>

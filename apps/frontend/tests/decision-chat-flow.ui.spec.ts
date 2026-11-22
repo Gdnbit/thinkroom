@@ -42,6 +42,61 @@ function emptyIngestionContext() {
 }
 
 test.describe('Decision chat main flow', () => {
+  test('labels the composer and confirms permanent conversation deletion', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const session = { id: 'delete-example', title: '示例对话', updated_at: '2026-07-01T02:00:00Z', message_count: 0 }
+    let deleted = false
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/api/v1/chat/sessions') return route.fulfill({ json: deleted ? [] : [session] })
+      if (path === '/api/v1/chat/sessions/delete-example' && route.request().method() === 'DELETE') {
+        deleted = true
+        return route.fulfill({ json: { deleted: session.id } })
+      }
+      if (isChatIngestionContextPath(path)) return route.fulfill({ json: emptyIngestionContext() })
+      if (path === '/api/v1/alerts') return route.fulfill({ json: { alerts: [], total: 0 } })
+      return route.fulfill({ json: [] })
+    })
+
+    await page.goto(`${baseUrl}/chat?session=${session.id}`)
+    await expect(page.getByRole('textbox', { name: '输入问题' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '上传资料', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: '发送', exact: true })).toBeDisabled()
+    const deleteButton = page.getByRole('button', { name: '删除对话：示例对话' })
+    await deleteButton.focus()
+
+    const firstConfirmation = page.waitForEvent('dialog').then(async (dialog) => {
+      expect(dialog.message()).toContain('无法撤销')
+      await dialog.dismiss()
+    })
+    await Promise.all([firstConfirmation, deleteButton.press('Enter')])
+    expect(deleted).toBe(false)
+
+    const secondConfirmation = page.waitForEvent('dialog').then((dialog) => dialog.accept())
+    await Promise.all([secondConfirmation, deleteButton.press('Enter')])
+    await expect(deleteButton).toHaveCount(0)
+    expect(deleted).toBe(true)
+  })
+
+  test('keeps the next action visible across primary pages on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.route('**/api/**', (route) => {
+      const path = new URL(route.request().url()).pathname
+      if (path === '/api/v1/alerts') return route.fulfill({ json: { alerts: [], total: 0 } })
+      if (path === '/api/v1/replay') return route.fulfill({ json: { snapshots: [] } })
+      return route.fulfill({ json: [] })
+    })
+    await page.goto(`${baseUrl}/chat`)
+    const nav = page.getByRole('navigation', { name: '主导航' })
+    await expect(page.getByRole('textbox', { name: '输入问题' })).toBeVisible()
+    await nav.getByRole('link', { name: '资料', exact: true }).click()
+    await expect(page.getByRole('link', { name: '去问答上传资料' })).toBeVisible()
+    await nav.getByRole('link', { name: '复盘', exact: true }).click()
+    await expect(page.getByRole('link', { name: '去问答并保存判断' })).toBeVisible()
+    await page.getByRole('link', { name: '去问答并保存判断' }).click()
+    await expect(page.getByRole('button', { name: '上传资料', exact: true })).toBeVisible()
+  })
+
   test('verification requests scenario data only when its tab opens', async ({ page }) => {
     const requests: string[] = []
     await page.route('**/api/**', (route) => {
@@ -1210,8 +1265,8 @@ test.describe('Decision chat main flow', () => {
     await page.goto(`${baseUrl}/chat?session=ui-session-a`)
 
     await expect(page.getByRole('heading', { name: '问答', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: /第一会话/ })).toBeVisible()
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('请验证主流程状态隔离')
+    await expect(page.getByRole('button', { name: /^第一会话/ })).toBeVisible()
+    await page.getByRole('textbox', { name: '输入问题' }).fill('请验证主流程状态隔离')
     await page.getByRole('button', { name: '发送' }).click()
     await chatRequestStarted
 
@@ -1226,7 +1281,7 @@ test.describe('Decision chat main flow', () => {
     await expect(page.getByRole('button', { name: '委员会讨论' })).toBeEnabled()
 
     releaseChatResponse?.()
-    await page.getByRole('button', { name: /第一会话/ }).click()
+    await page.getByRole('button', { name: /^第一会话/ }).click()
     await expect(page.getByRole('heading', { name: '结论' })).toBeVisible()
     await expect(page.getByText('UI 主流程回答已经基于引用证据生成')).toBeVisible()
     await expect(page.getByText('引用证据显示 UI 主流程验收需要保留 trace 展开。')).toBeVisible()
@@ -1416,7 +1471,7 @@ test.describe('Decision chat main flow', () => {
 
     await page.goto(`${baseUrl}/chat?session=ui-insufficient-session`)
 
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('请只根据选定资料判断下周铜价')
+    await page.getByRole('textbox', { name: '输入问题' }).fill('请只根据选定资料判断下周铜价')
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText('选定资料不足以支持该问题的判断')).toBeVisible()
@@ -1676,9 +1731,9 @@ test.describe('Decision chat main flow', () => {
     })
 
     await page.goto(`${baseUrl}/chat?session=ui-source-b`)
-    await expect(page.getByRole('button', { name: /B 会话/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^B 会话/ })).toBeVisible()
     await page.getByTitle('刷新').click()
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('请只使用当前会话资料回答')
+    await page.getByRole('textbox', { name: '输入问题' }).fill('请只使用当前会话资料回答')
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText('本次回答只使用当前会话资料范围')).toBeVisible()
@@ -1873,11 +1928,11 @@ test.describe('Decision chat main flow', () => {
 
     await page.goto(`${baseUrl}/chat?session=ui-model-outage-session`)
     const prompt = '请分析当前模型不可用时的提示'
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill(prompt)
+    await page.getByRole('textbox', { name: '输入问题' }).fill(prompt)
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText('模型服务不可用：请检查 OpenRouter 密钥、余额、代理或稍后重试。')).toBeVisible()
-    await expect(page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...')).toHaveValue(prompt)
+    await expect(page.getByRole('textbox', { name: '输入问题' })).toHaveValue(prompt)
     await expect(page.getByText(/正在处理 普通问答/)).toHaveCount(0)
     expect(unhandledApiRequests).toEqual([])
     expect(consoleErrors.filter((item) => !item.includes('503 (Service Unavailable)'))).toEqual([])
@@ -1995,11 +2050,11 @@ test.describe('Decision chat main flow', () => {
 
     await page.goto(`${baseUrl}/chat`)
     await page.getByRole('button', { name: /简报生成/ }).click()
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('生成一份系统演示简报')
+    await page.getByRole('textbox', { name: '输入问题' }).fill('生成一份系统演示简报')
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText(/简报已生成，但暂未保存到当前会话/)).toBeVisible()
-    await expect(page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...')).toHaveValue('')
+    await expect(page.getByRole('textbox', { name: '输入问题' })).toHaveValue('')
     expect(briefingCalls).toBe(1)
     expect(assistantWriteAttempts).toBe(1)
     expect(unhandledApiRequests).toEqual([])
@@ -2144,7 +2199,7 @@ test.describe('Decision chat main flow', () => {
 
     await page.goto(`${baseUrl}/chat`)
     await page.getByRole('button', { name: /简报生成/ }).click()
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('生成一份带质量回执的简报')
+    await page.getByRole('textbox', { name: '输入问题' }).fill('生成一份带质量回执的简报')
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText('简报已经生成，且返回字段级质量回执。')).toBeVisible()
@@ -2283,7 +2338,7 @@ test.describe('Decision chat main flow', () => {
 
     await page.goto(`${baseUrl}/chat`)
     await page.getByRole('button', { name: /委员会讨论/ }).click()
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('组织一次带质量回执的委员会讨论')
+    await page.getByRole('textbox', { name: '输入问题' }).fill('组织一次带质量回执的委员会讨论')
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText('委员会已生成质量回执，但部分字段需要复核。')).toBeVisible()
@@ -2391,7 +2446,7 @@ test.describe('Decision chat main flow', () => {
     })
 
     await page.goto(`${baseUrl}/chat?session=missing-session`)
-    await page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...').fill('这是陈旧 URL 下的第一问')
+    await page.getByRole('textbox', { name: '输入问题' }).fill('这是陈旧 URL 下的第一问')
     await page.getByRole('button', { name: '发送' }).click()
 
     await expect(page.getByText('新会话已创建并正常回答')).toBeVisible()
@@ -2435,7 +2490,7 @@ test.describe('Decision chat main flow', () => {
     await chatMode.click()
     await expect(chatMode).toHaveAttribute('aria-pressed', 'true')
     await expect(debateMode).toHaveAttribute('aria-pressed', 'false')
-    await expect(page.getByPlaceholder('输入问题，或把文件拖到这里后再提问...')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: '输入问题' })).toBeVisible()
 
     const body = page.locator('body')
     await expect(body).toContainText(marker as string)
